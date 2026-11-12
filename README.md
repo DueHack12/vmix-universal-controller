@@ -178,5 +178,7 @@ Releases are built by GitHub Actions. To publish one:
    ```
 3. The **Release** workflow runs the tests, builds `vmix-universal-controller-<version>.zip` (one `vMix Universal Controller` folder, Windows line endings for the `.bat` files) and publishes a GitHub release with that zip and the changelog section. Tags with a `-` (like `-beta.1`) are marked as pre-releases.
 
+You can also create the release on the GitHub website (Releases › Draft a new release, with a new tag): the workflow then attaches the zip to it and keeps your title and notes. To build the zip again for an existing tag, use **Actions › Release › Run workflow** and enter the tag.
+
 ## License
 [MIT](LICENSE). vMix is a trademark of StudioCoast Pty Ltd; this project is not affiliated with StudioCoast.
