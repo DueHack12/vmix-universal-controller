@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Broadcast Console</title>
+<link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+<div class="page">
+  <div class="row"><div class="logo" style="width:44px;height:44px;font-size:18px">BC</div><div><h1>Broadcast Console</h1><div class="muted small">Fairfield Prep Media</div></div><span class="grow"></span><span id="vmix" class="pill"></span></div>
+  <div class="row wrap" style="align-items:stretch;gap:16px">
+    <div class="panel grow" style="min-width:420px">
+      <h2>Run a show</h2>
+      <div class="muted small">Pick tonight's show. Its links, graphics, mixer, playlists and break playlists load the way they were saved.</div>
+      <div id="shows" class="col"></div>
+      <div class="row"><input id="newName" placeholder="New show name (e.g. Football)" class="grow"><select id="copyFrom"></select><button id="newShow" class="b-dash">+ New show</button></div>
+    </div>
+    <div class="panel" style="width:380px">
+      <h2>Set up · <span id="cl-show"></span></h2>
+      <div id="checklist" class="col"></div>
+      <h2 style="margin-top:8px">Open</h2>
+      <a class="pill" style="text-decoration:none;font-size:15px;padding:12px" href="/control?layout=vertical">▯ Control · vertical (1080×1920 monitor)</a>
+      <a class="pill" style="text-decoration:none;font-size:15px;padding:12px" href="/control?layout=horizontal">▭ Control · horizontal (1920×1080)</a>
+      <a class="pill" style="text-decoration:none;font-size:15px;padding:12px" href="/remote">▤ Broadcast Remotes · iPad / phone</a>
+      <a class="pill" style="text-decoration:none;font-size:15px;padding:12px" href="/master">⚙ Master · settings, Link to vMix, Companion</a>
+      <div id="net" class="small muted"></div>
+    </div>
+  </div>
+</div>
+<script src="/common.js"></script>
+<script>
+  const { esc, cmd } = BC;
+  BC.onState((s) => {
+    if (!s) return;
+    document.getElementById('vmix').innerHTML = `<span class="dot" style="background:${s.vmix.connected ? '#3FB950' : '#FF6B6B'}"></span>${s.vmix.connected ? 'vMix connected · ' + esc(s.vmix.edition + ' ' + s.vmix.version) : 'vMix not found at ' + esc(s.vmix.host + ':' + s.vmix.port)}`;
+    BC.patch(document.getElementById('shows'), s.show.list.map((n) => `<div class="row card"><b class="grow" style="font-size:16px">${esc(n)}</b>${n === s.show.name ? '<span class="ok small" style="font-weight:700">● loaded</span>' : `<button data-cmd="show.load" data-args='${esc(JSON.stringify({ name: n }))}'>Load</button>`}<a class="pill" href="/control?layout=vertical" style="text-decoration:none;background:var(--red);border-color:var(--red);color:#fff;font-weight:800" ${n === s.show.name ? '' : 'hidden'}>RUN ▶</a></div>`).join(''));
+    const cf = document.getElementById('copyFrom');
+    if (cf._n !== s.show.list.join()) { cf._n = s.show.list.join(); cf.innerHTML = '<option value="">blank</option>' + s.show.list.map((n) => `<option value="${esc(n)}">copy settings from ${esc(n)}</option>`).join(''); }
+    const st = (ok, warn) => ok ? ['✓', '#3FB950'] : warn ? ['!', '#E3B341'] : ['•', '#9AA4B2'];
+    const jobsOk = s.links.jobs.filter((j) => j.status === 'ok' || j.status === 'guess').length;
+    const steps = [
+      ['Link vMix', s.vmix.connected ? jobsOk + ' of ' + s.links.jobs.length + ' jobs linked' : 'vMix not connected', s.vmix.connected && jobsOk === s.links.jobs.length, s.vmix.connected, 'setup'],
+      ['Drive folders', s.config.driveFound ? 'found' : 'not found', s.config.driveFound, false, 'setup'],
+      ['Graphics', s.graphics.items.length + ' titles' + (s.graphics.items.some((g) => g.statpop) ? ' · stat pop set' : ''), s.graphics.items.length > 0, false, 'graphics'],
+      ['Mixer', s.mixer.channels.length + ' channels', s.mixer.channels.length > 0, false, 'mixer'],
+      ['Music & videos', s.music.playlists.length + ' playlists · ' + s.videos.folders.length + ' video folders', s.music.playlists.length > 0 && s.videos.folders.length > 0, s.music.playlists.length > 0, 'music'],
+      ['Ads', s.ads.library.length + ' ads · ' + s.ads.breaks.length + ' break playlists', s.ads.library.length > 0, false, 'ads'],
+      ['OpenStatsEngine', s.ose.url ? (s.ose.ok ? 'connected' : 'not reachable') : 'not set (optional)', s.ose.ok, !s.ose.url, 'setup'],
+      ['Companion', s.config.oscFeedback.host ? 'feedback to ' + s.config.oscFeedback.host : 'OSC on UDP ' + s.config.oscPort + ' (feedback not set)', !!s.config.oscFeedback.host, true, 'companion'],
+    ];
+    document.getElementById('cl-show').textContent = s.show.name;
+    BC.patch(document.getElementById('checklist'), steps.map(([n, sub, ok, warn, pg]) => { const [m, c] = st(ok, warn); return `<a href="/master#${pg}" class="row card" style="text-decoration:none;color:inherit"><span style="width:22px;height:22px;border-radius:50%;background:${c};color:#111827;display:flex;align-items:center;justify-content:center;font-weight:800">${m}</span><span class="grow"><b>${esc(n)}</b><span class="small muted" style="display:block">${esc(sub)}</span></span></a>`; }).join(''));
+    document.getElementById('net').innerHTML = `Remotes and other computers: <b class="mono">http://${esc(s.config.host)}:${s.config.port}/</b> (or this PC's IP address)`;
+  });
+  document.getElementById('newShow').onclick = () => { const n = document.getElementById('newName').value.trim(); if (n) cmd('show.new', { name: n, copyFrom: document.getElementById('copyFrom').value }); };
+  BC.connect(); BC.wire();
+</script>
+</body>
+</html>

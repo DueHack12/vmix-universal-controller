@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#0B0E13">
+<title>Broadcast Remotes</title>
+<link rel="stylesheet" href="/styles.css">
+<style>
+  html, body { touch-action: manipulation; -webkit-user-select: none; user-select: none; }
+  .r-app { min-height: 100vh; padding: 12px; display: flex; flex-direction: column; gap: 12px; }
+  .r-top { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .tabs button { font-size: 15px; padding: 12px 18px; border-radius: 12px; }
+  .big { font-size: 18px; font-weight: 800; padding: 22px 0; border-radius: 14px; }
+  .huge { font-size: 22px; font-weight: 800; padding: 28px 0; border-radius: 16px; letter-spacing: 1px; }
+  .rgrid { display: grid; gap: 12px; }
+  .rstrips { display: grid; grid-template-columns: repeat(auto-fit, minmax(118px, 1fr)); gap: 10px; }
+  .rstrip { border-radius: 16px; border: 2px solid var(--line2); background: var(--panel); padding: 12px 8px; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+  .rstrip.mute { background: #0F1217; border-color: #3A2A2E; } .rstrip.listen { background: var(--amber-soft); border-color: var(--amber); } .rstrip.mutelisten { background: var(--blue-bg); border-color: var(--blue); }
+  .rfader { -webkit-appearance: slider-vertical; writing-mode: vertical-lr; direction: rtl; width: 44px; height: 260px; }
+  .rmeter { width: 10px; height: 260px; border-radius: 5px; background: var(--input); display: flex; align-items: flex-end; overflow: hidden; } .rmeter > span { width: 10px; display: block; }
+  .rbtn { width: 100%; height: 48px; font-size: 13px; font-weight: 800; border-radius: 10px; border: 0; background: #3A4452; color: #fff; }
+  .tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 12px; }
+  .gtile { min-height: 110px; border-radius: 14px; border: 2px solid #F2F4F7; background: #F2F4F7; color: #111827; display: flex; flex-direction: column; justify-content: space-between; align-items: flex-start; padding: 14px; text-align: left; }
+  .gtile.on { background: var(--red); border-color: #FF6B6B; color: #fff; }
+  .countdown { font-family: var(--mono); font-size: 64px; font-weight: 700; line-height: 1; }
+  @media (max-width: 600px) {
+    .rfader, .rmeter, .rstrip .row { display: none !important; }
+    .rstrips { grid-template-columns: 1fr; }
+    .rstrip { align-items: stretch; text-align: left; }
+    .rstrip .hfader { display: block !important; width: 100%; height: 36px; }
+    .rstrip > .col { flex-direction: row !important; }
+    .tabs button { padding: 10px 12px; font-size: 13px; }
+  }
+</style>
+</head>
+<body>
+<div class="r-app">
+  <div class="r-top" id="top"></div>
+  <div id="banner"></div>
+  <div id="view" class="col" style="gap:12px"></div>
+</div>
+<script src="/common.js"></script>
+<script src="/remote.js"></script>
+</body>
+</html>

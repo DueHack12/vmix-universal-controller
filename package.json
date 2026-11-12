@@ -1,0 +1,14 @@
+{
+  "name": "broadcast-console",
+  "version": "0.1.0",
+  "description": "One-operator console for vMix sports broadcasts: graphics, videos, ads, music, mixer, stream health. Companion/Stream Deck over OSC.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "demo": "node scripts/demo.js",
+    "test": "node --test \"test/*.test.js\""
+  },
+  "engines": { "node": ">=20" },
+  "private": true,
+  "license": "UNLICENSED"
+}
