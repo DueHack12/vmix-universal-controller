@@ -1,0 +1,117 @@
+vMix UNIVERSAL CONTROLLER - SETUP ON THE vMIX PC
+================================================
+
+This is our new controller for running graphics, videos, ads, music and audio
+from one screen. It talks to vMix, so you don't have to work inside vMix
+itself. It has only been tested against a simulated vMix so far, so this
+first setup is the real test. Please write down anything that doesn't work.
+
+
+ONE-TIME SETUP (about 15 minutes)
+---------------------------------
+1. Install Node.js (the LTS version) from https://nodejs.org.
+   Just click through with the defaults.
+
+2. Unzip the vmix-universal-controller zip to:  C:\vMix Universal Controller
+   (Don't run it from inside the zip or from Downloads.)
+
+3. In vMix: Settings > Web Controller > tick "Enable" (port 8088).
+   Leave the user name and password empty. (If you do set them, type the
+   same ones into Master > Setup > Find vMix later.)
+
+4. In vMix, add three Video List inputs (Add Input > Video List) named
+   exactly:  MUSIC   ADS   VIDEOS
+   Then save the vMix preset.
+
+5. Make sure Google Drive for desktop is running, so this folder shows up:
+   G:\Shared drives\Prep Sports Broadcasting\
+
+6. Optional: install ffmpeg for video thumbnails.
+   Open Command Prompt and run:  winget install ffmpeg
+
+
+FIRST RUN
+---------
+1. Double-click "Start vMix Universal Controller.bat".
+   A black window opens. LEAVE IT OPEN: closing it stops the controller.
+   A browser page opens too.
+
+   WINDOWS FIREWALL: the first time, Windows asks whether Node.js may use
+   the network. Tick BOTH "Private" and "Public", then press "Allow".
+   If you miss it, iPads, phones and Companion can't connect.
+
+2. Click "Master" and work through Setup:
+   - Find vMix: should say "Connected".
+   - Assign jobs: Music, Ads, Videos and the Back-to-game camera
+     should show "linked". If one is wrong, press "Pick in vMix",
+     then click the correct input in vMix so it goes to Preview.
+     If the correct input is ALREADY in Preview, press the
+     "Use ... (already in Preview)" button instead.
+   - Drive folders: press "Create missing folders".
+     It only adds folders and never moves or deletes anything.
+   - Security: type a PIN (4 to 8 digits) and press "Save PIN".
+     iPads and phones will ask for it once. This PC never asks.
+   - Ads > Ad library: if we're keeping the old ads folder, paste
+       G:\Shared drives\Prep Sports Broadcasting\Videos\ADS 25-26
+     and press Save.
+
+3. Copy some songs into  vMix Universal Controller\Music\Bumps  and some
+   clips into  vMix Universal Controller\Videos\Highlights  on the Drive.
+   Each folder becomes a playlist or a video folder.
+
+
+EVERY GAME
+----------
+1. Open vMix and the show preset.
+2. Double-click "Start vMix Universal Controller.bat".
+3. On the portrait monitor, open "Control - vertical" and press F11 for
+   full screen.
+
+
+QUICK TEST BEFORE A REAL GAME
+-----------------------------
+Graphics
+- Pick one, press TAKE, and check it appears in vMix. The bar should turn red.
+- Change a text field while it's on air: the change should show in vMix.
+
+Music
+- Press Play, then try FADE OUT and KILL.
+- Play a song, then play a video to air: the music should dip and come
+  back when the video is off air.
+
+Videos
+- Press CUE: the clip should land in vMix Preview.
+- While the clip is on air, cue another one: it must NOT replace the clip
+  on air. It should load after the director cuts away.
+
+Ads
+- Press GO TO AD BREAK. After a 5-second countdown, the ads should land in
+  vMix Preview. Take them in vMix: they should start playing.
+- Press BACK TO GAME: the game camera should go to Preview and the music
+  should come back.
+
+Mixer
+- Check the meters move. Try MUTE and LISTEN on a mic.
+
+iPad / phone
+- On the school Wi-Fi open  http://<this PC's IP>:8790/remote
+  (the IP is shown in the black window), enter the PIN, and press a
+  button.
+
+
+OTHER THINGS TO KNOW
+--------------------
+- iPads and phones: on the school Wi-Fi, open
+    http://<this PC's IP>:8790/remote
+  then use "Add to Home Screen".
+
+- Practice: "Try Demo (no vMix).bat" runs everything with a fake vMix.
+  It's safe and touches nothing real.
+
+- Full instructions: README.md in the folder covers everything, including
+  Companion, YouTube and OpenStatsEngine setup.
+
+- If something breaks: in Master > Setup > Log, press
+  "download today's log" (or take the file from the
+  vMix Universal Controller\data\logs folder). Send me that file, a photo
+  of the screen, and a note of what you pressed.

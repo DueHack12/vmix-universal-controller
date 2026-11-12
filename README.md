@@ -1,8 +1,14 @@
-# Broadcast Console
+# vMix Universal Controller (vMixUC)
 
-One screen for the graphics / music / ads operator on a vMix sports broadcast, while the director switches cameras on the hardware panel. Runs on the **vMix PC**. Control it from the portrait or landscape monitor, from Stream Decks through Companion, and (later) from iPads and phones.
+[![Tests](https://github.com/DueHack12/vmix-universal-controller/actions/workflows/ci.yml/badge.svg)](https://github.com/DueHack12/vmix-universal-controller/actions/workflows/ci.yml)
 
-**What's in Phase 1**
+One screen for the graphics / music / ads operator on a vMix sports broadcast, while the director switches cameras on the hardware panel. Runs on the **vMix PC**. Control it from the portrait or landscape monitor, from Stream Decks through Companion, and from iPads and phones.
+
+> **Beta.** So far this has been tested against a simulated vMix only. Run the quick test in [`SETUP.txt`](SETUP.txt) before you rely on it for a game, and please [report anything that doesn't work](https://github.com/DueHack12/vmix-universal-controller/issues) with the log file attached (Master › Setup › Log).
+
+**Download:** the latest zip is on the [Releases page](https://github.com/DueHack12/vmix-universal-controller/releases). Step-by-step setup for the vMix PC is in [`SETUP.txt`](SETUP.txt).
+
+**Game-day core**
 - **Graphics:** pick a GT title, edit its text, TAKE/OUT. A red tally read back from vMix itself, with on-air timers and an "it will replace…" warning.
 - **Videos:** folders on the Drive, thumbnails, a queue, CUE to Preview for the director, play/pause/restart, time left, drag-and-drop upload. It never swaps a clip that's on air.
 - **Ads:** your Ad Manager built in.
@@ -18,7 +24,7 @@ One screen for the graphics / music / ads operator on a vMix sports broadcast, w
 - **Stream health:** vMix link, stream, recording time, record-drive hours left, CPU, program audio with a silence alarm, linked inputs.
 - **Companion / Stream Deck:** OSC on UDP 9600 or HTTP. Feedback (on-air, time left, song…) is sent back to Companion.
 
-**What's in Phase 2**
+**Setup & tools**
 - **Master page** (`/master`): the settings hub, with a left menu.
   - **Setup:** vMix, job links, Drive, OpenStatsEngine, NDI Audio Bridge.
   - **Graphics:** names, groups, overlays, auto-out, field linker, pick-from lists, stat pop events.
@@ -39,14 +45,14 @@ One screen for the graphics / music / ads operator on a vMix sports broadcast, w
 - **NDI Audio Bridge:** give a mixer channel its Bridge mic (e.g. `1/1`) and it gets a COUGH button. Also from Companion: `/console/mix/{channel}/cough`.
 - **Start screen:** shows with RUN, plus a setup checklist that links to the right Master page.
 
-**What's in Phase 3**
-- **Broadcast Remotes** (`/remote`) for iPad: big touch tabs for Mixer, Ads, Music, Graphics and Videos.
+**Extras**
+- **vMix UC Remotes** (`/remote`) for iPad: big touch tabs for Mixer, Ads, Music, Graphics and Videos.
   - Phone, one job each: `/remote?view=mixer`, `ads`, `music`, `graphics` or `videos`.
   - Open it on the school Wi-Fi at `http://<vMix PC>:8790/remote`, then use **Add to Home Screen**.
 - **YouTube check:** confirms from YouTube itself that you're live and shows how many are watching (plus the peak). The Stream health section turns red if vMix is streaming but YouTube isn't live.
   - Setup: a free API key and your channel ID go in Master › Setup.
 - **Monitor pictures:** Preview, Program and "Check a graphic" show real images from vMix snapshots, about once a second.
-  - Turn it on in Master › Setup. It only works when the console runs on the vMix PC.
+  - Turn it on in Master › Setup. It only works when the controller runs on the vMix PC.
 - **Stream Deck + dials:** send relative values from Companion's rotary actions:
   - `/console/music/level "+5"`
   - `/console/mix/select "+1"` and `/console/mix/selected/level "-2"`
@@ -56,38 +62,40 @@ One screen for the graphics / music / ads operator on a vMix sports broadcast, w
 - **Beginner mode:** an option in Master › Setup. Hover any control-page button to see what it does. Off by default.
 
 ## Install on the vMix PC (one time)
-1. Install **Node.js LTS** from https://nodejs.org (accept the defaults).
-2. Put this folder somewhere permanent, e.g. `C:\Broadcast Console`.
-3. In vMix: **Settings › Web Controller › tick "Enable"** (port 8088). That's the API the console uses.
+1. Install **Node.js LTS** (22 or newer) from https://nodejs.org (accept the defaults).
+2. Download the zip from [Releases](https://github.com/DueHack12/vmix-universal-controller/releases) and unzip it somewhere permanent, e.g. `C:\vMix Universal Controller` (not inside Downloads, and not run from inside the zip).
+3. In vMix: **Settings › Web Controller › tick "Enable"** (port 8088). That's the API the controller uses. If you set a user name and password there, enter them in Master › Setup too.
 4. Optional but recommended: install **ffmpeg** (`winget install ffmpeg`) for video thumbnails and exact lengths of unusual files.
-5. Make sure **Google Drive for desktop** is running and the shared drive shows up as `G:\Shared drives\Prep Sports Broadcasting\`.
+5. Make sure **Google Drive for desktop** is running and the shared drive shows up as `G:\Shared drives\Prep Sports Broadcasting\` (or set your own folder in Master › Setup › Drive folders).
+6. The first time it starts, **Windows Firewall** asks about Node.js: tick **both Private and Public** and press **Allow**. Without that, iPads, phones and Companion on other computers can't reach it.
 
 ## Every game
 1. Open vMix and your show preset.
-2. Double-click **`Start Broadcast Console.bat`**. A browser opens at the start page.
+2. Double-click **`Start vMix Universal Controller.bat`**. A browser opens at the start page.
 3. Pick the show and press **RUN**, or open:
    - `http://localhost:8790/control?layout=vertical` on the portrait monitor (press F11 for full screen)
    - `http://localhost:8790/control?layout=horizontal` on a 1920×1080 screen
 
-Leave the black window open while you're on air. Closing it stops the console. vMix keeps running either way.
+Leave the black window open while you're on air. Closing it stops the controller (it saves first). vMix keeps running either way.
 
 ## First-time setup (Master page: ⚙ on the control page, or `/master`)
 1. **Find vMix:** normally `127.0.0.1 : 8088`. It should say Connected.
-2. **Assign jobs:** the console needs four vMix inputs:
+2. **Assign jobs:** the controller needs four vMix inputs:
    - a **List** input for music (call it `MUSIC`)
    - a **List** input for ads (`ADS`)
    - a **List** input for video clips (`VIDEOS`)
    - the **game camera** that BACK TO GAME puts in Preview
 
-   Make the three List inputs in vMix if you don't have them (Add Input › Video List). They're auto-matched by name. To change one, press **◎ Pick in vMix** and click the input in vMix so it goes to Preview.
+   Make the three List inputs in vMix if you don't have them (Add Input › Video List). They're auto-matched by name. To change one, press **◎ Pick in vMix** and click the input in vMix so it goes to Preview. If it's already in Preview, press **Use “…” (already in Preview)** instead.
 3. **Drive folders:** press **Create missing folders** to make the tree below. Nothing that already exists is touched.
 4. **Graphics:** rename titles, set their group and overlay channel, or hide the ones you don't use.
 5. **Companion:** add a *Generic: OSC* connection to this PC on port **9600**. To get button feedback, enter Companion's IP and port.
-6. Optional: on **Master › Setup**, enter OpenStatsEngine's address (e.g. `http://192.168.50.21:8080`), then on **Master › Graphics** tick "Use this graphic for stat pops" on your stat pop title.
+6. **Security (recommended):** on **Master › Setup › Security**, set a **PIN**. See [Security](#security).
+7. Optional: on **Master › Setup**, enter OpenStatsEngine's address (e.g. `http://192.168.50.21:8080`), then on **Master › Graphics** tick "Use this graphic for stat pops" on your stat pop title.
 
 ## The Drive folder
 ```
-G:\Shared drives\Prep Sports Broadcasting\Broadcast Console\
+G:\Shared drives\Prep Sports Broadcasting\vMix Universal Controller\
 ├── Videos\   Highlights, Pregame, Packages …    (one folder = one choice in the Videos dropdown)
 ├── Music\    Bumps, Highlights, Pregame, Timeouts, Walk-out …   (one folder = one playlist)
 ├── Ads\      15Second, 30Second, 1Minute, 2Minutes+, Unsorted, Sponsors\NFHS, Sponsors\DAF
@@ -96,11 +104,24 @@ G:\Shared drives\Prep Sports Broadcasting\Broadcast Console\
 ├── Exports\  ads-played-YYYY-MM-DD.csv (what aired, for sponsors)
 └── _Archive\
 ```
-House rule: the console **never moves, renames or deletes** anything on the Drive. Uploads get a new name (`clip (2).mp4`) instead of overwriting.
+House rule: the controller **never moves, renames or deletes** anything on the Drive. Uploads get a new name (`clip (2).mp4`) instead of overwriting.
 Your existing `ADS 25-26` folder can be used as-is: Master › Ads › **Ad library**.
 
+## Security
+Anyone on the same network can open the controller's pages, so on a school or venue Wi-Fi:
+- **Set a PIN** (Master › Setup › Security, 4–8 digits). iPads, phones and other computers then enter it once and stay signed in. The vMix PC itself never needs it. Changing the PIN signs every device out.
+- **Companion over HTTP:** add `?pin=1234` to the URL, e.g. `http://<vMix PC>:8790/osc/console/music/toggle?pin=1234`.
+- **Companion over OSC (UDP):** OSC has no PIN. To lock it down, list Companion's IP under *OSC (UDP) only from*.
+- The PIN and the OSC list can only be changed on the vMix PC.
+- Always protected, PIN or not: commands from other websites are refused, uploads can only go into the `Videos` folders, and the pages only answer to this PC's IP address, `localhost` or its computer name.
+
+## When something goes wrong
+- Every day gets a log file in `data\logs\YYYY-MM-DD.log` (path shown in the black window). **Master › Setup › Log › download today's log** gets it from any device. Send it along with what you pressed.
+- Unexpected errors are written to the log and the controller keeps running.
+- `Port 8790 is busy`: the controller is already running in another window.
+
 ## Companion / Stream Deck commands
-OSC to UDP **9600**, or HTTP `GET http://<vMix PC>:8790/osc/console/...` (Generic HTTP module).
+OSC to UDP **9600**, or HTTP `GET http://<vMix PC>:8790/osc/console/...` (Generic HTTP module; add `?pin=` if you set a PIN).
 
 | Command | What it does |
 |---|---|
@@ -120,7 +141,7 @@ OSC to UDP **9600**, or HTTP `GET http://<vMix PC>:8790/osc/console/...` (Generi
 Feedback sent to Companion (and readable at `/api/fb`): `/fb/gfx/{id}/onair`, `/fb/music/playing`, `/fb/music/song`, `/fb/music/remaining`, `/fb/ads/phase`, `/fb/ads/countdown`, `/fb/ads/adleft`, `/fb/ads/remaining`, `/fb/video/remaining`, `/fb/mix/{name}/mode`, `/fb/rec`, `/fb/rec/time`, `/fb/stream`, `/fb/health/ok`.
 
 ### YouTube API key (for the live check)
-1. Go to https://console.cloud.google.com and create a project (e.g. "Broadcast Console").
+1. Go to https://console.cloud.google.com and create a project (e.g. "vMix Universal Controller").
 2. Under **APIs & Services › Library**, enable **YouTube Data API v3**.
 3. Under **APIs & Services › Credentials**, choose **Create credentials › API key**.
 4. Paste the key and your channel ID (YouTube Studio › Settings › Channel › Advanced settings, starts with `UC`) into Master › Setup.
@@ -131,15 +152,31 @@ It only reads public data. A whole game uses a small part of the free daily quot
 `Space` music play/pause · `F` fade out · `N` next song · `T` take selected graphic · `O` out · `C` cue next video · `P` video play/pause.
 
 ## Try it without vMix
-Double-click **`Try Demo (no vMix).bat`**. It starts a fake vMix plus demo media and opens the console on port 8791. Nothing touches the real vMix or the Drive.
+Double-click **`Try Demo (no vMix).bat`** (or run `npm run demo`). It starts a fake vMix plus demo media and opens the controller on port 8791. Nothing touches the real vMix or the Drive.
 
 ## For whoever maintains it
-- **Stack:** Node 20+ with **no dependencies** (no `npm install`).
+- **Stack:** Node 22+ with **no dependencies** (no `npm install`).
 - **Code layout:**
   - `server.js`: HTTP + SSE + OSC
   - `src/engine.js`: polls vMix ~4×/s and routes commands
+  - `src/auth.js`: PIN, cross-site and host checks
+  - `src/statediff.js`: live state is sent as small patches after the first full message
   - `src/features/*`: one file per section
   - `public/*`: the pages
-- **Tests:** `npm test` runs unit tests plus end-to-end flows against `test/mock-vmix.js`, which speaks the vMix API.
+- **Tests:** `npm test` runs unit tests, end-to-end flows against `test/mock-vmix.js` (which speaks the vMix API) and HTTP server tests. ffmpeg is needed for the media tests (they are skipped without it).
 - **Settings and shows:** stored in `data\`. Back that folder up if you move PCs.
-- **Progress and plan:** see `PROGRESS.md`.
+- **Verbose console:** set `VUC_VERBOSE=1` to print every log line in the black window.
+- **Changes:** see [`CHANGELOG.md`](CHANGELOG.md).
+
+## Releases
+Releases are built by GitHub Actions. To publish one:
+1. Update `version` in `package.json` and add a section for it at the top of `CHANGELOG.md`.
+2. Commit, then tag and push the tag:
+   ```bash
+   git tag v0.1.0-beta.1
+   git push origin v0.1.0-beta.1
+   ```
+3. The **Release** workflow runs the tests, builds `vmix-universal-controller-<version>.zip` (one `vMix Universal Controller` folder, Windows line endings for the `.bat` files) and publishes a GitHub release with that zip and the changelog section. Tags with a `-` (like `-beta.1`) are marked as pre-releases.
+
+## License
+[MIT](LICENSE). vMix is a trademark of StudioCoast Pty Ltd; this project is not affiliated with StudioCoast.

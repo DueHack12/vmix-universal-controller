@@ -24,6 +24,7 @@ module.exports = (engine) => {
   let history = [];       // [[paths of a played break], ...] newest last
   let sponsorsPlayed = new Set();
   let played = [];        // [{ time, name, break }]
+  let csvQueue = Promise.resolve();
 
   const basePath = () => cfg().basePath || engine.driveDir('Ads');
   const adsInput = () => engine.input('ads');
@@ -87,15 +88,15 @@ module.exports = (engine) => {
     if (played.length > 300) played.shift();
     const a = libByPath(p);
     if (a && a.kind === 'sponsor') sponsorsPlayed.add(a.folder);
-    try {
-      const dir = engine.driveDir('Exports');
-      if (fs.existsSync(dir)) {
-        const file = path.join(dir, 'ads-played-' + time.toISOString().slice(0, 10) + '.csv');
-        const line = [time.toISOString(), engine.show.name, b ? b.name : '', path.basename(p), a ? a.folder : ''].map((v) => '"' + String(v).replace(/"/g, '""') + '"').join(',') + '\r\n';
-        if (!fs.existsSync(file)) fs.writeFileSync(file, 'time,show,break,file,folder\r\n');
-        fs.appendFileSync(file, line);
-      }
-    } catch (e) { engine.log('Could not write ads log: ' + e.message); }
+    // CSV on the Drive, written in the background and in order (a slow Drive must not freeze the break)
+    const dir = engine.driveDir('Exports');
+    const file = path.join(dir, 'ads-played-' + time.toISOString().slice(0, 10) + '.csv');
+    const line = [time.toISOString(), engine.show.name, b ? b.name : '', path.basename(p), a ? a.folder : ''].map((v) => '"' + String(v).replace(/"/g, '""') + '"').join(',') + '\r\n';
+    csvQueue = csvQueue.then(async () => {
+      if (!(await fs.promises.stat(dir).then((st) => st.isDirectory(), () => false))) return;
+      const isNew = await fs.promises.access(file).then(() => false, () => true);
+      await fs.promises.appendFile(file, (isNew ? 'time,show,break,file,folder\r\n' : '') + line);
+    }).catch((e) => engine.log('Could not write ads log: ' + e.message));
   }
 
   async function startBreak() {

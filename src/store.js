@@ -6,14 +6,14 @@
 const fs = require('fs');
 const path = require('path');
 
-const DEFAULT_DRIVE = 'G:\\Shared drives\\Prep Sports Broadcasting\\Broadcast Console';
+const DEFAULT_DRIVE = 'G:\\Shared drives\\Prep Sports Broadcasting\\vMix Universal Controller';
 
 function defaultConfig() {
   return {
     port: 8790,
     oscPort: 9600,
     oscFeedback: { host: '', port: 0 },
-    vmix: { host: '127.0.0.1', port: 8088 },
+    vmix: { host: '127.0.0.1', port: 8088, user: '', password: '' },   // user/password only if set in vMix › Web Controller
     driveRoot: DEFAULT_DRIVE,
     currentShow: 'Default',
     ffmpegPath: '',
@@ -22,6 +22,9 @@ function defaultConfig() {
     pollMs: 250,
     oseUrl: '',
     bridge: { host: '', port: 9500 },
+    pin: '',               // '' = no PIN; else other devices must enter it (Master › Setup)
+    oscAllow: [],          // [] = OSC from anyone; else only these IPs (and this PC)
+    allowedHosts: [],      // extra names this PC may be opened by (besides IP, localhost, computer name)
   };
 }
 
@@ -99,11 +102,26 @@ class Store {
   }
   saveShow(show) {
     this.writeJson(path.join('shows', safeName(show.name) + '.json'), show);
-    // backup copy on the Drive (copy only; never touches anything else)
-    try {
-      const dir = path.join(this.config.driveRoot, 'Shows');
-      if (fs.existsSync(dir)) fs.writeFileSync(path.join(dir, safeName(show.name) + '.json'), JSON.stringify(show, null, 2));
-    } catch { /* Drive not available: fine */ }
+    this.backupToDrive(show);
+  }
+  /**
+   * Backup copy on the Drive (copy only; never touches anything else). Done in the background:
+   * Google Drive for desktop can stall, and that must never freeze the controller.
+   */
+  backupToDrive(show) {
+    const dir = path.join(this.config.driveRoot, 'Shows');
+    const file = path.join(dir, safeName(show.name) + '.json');
+    const text = JSON.stringify(show, null, 2);
+    this.pendingBackup = { file, text };
+    if (this.backupBusy) return;
+    this.backupBusy = true;
+    const next = async () => {
+      const job = this.pendingBackup; this.pendingBackup = null;
+      if (!job) { this.backupBusy = false; return; }
+      try { if ((await fs.promises.stat(path.dirname(job.file))).isDirectory()) await fs.promises.writeFile(job.file, job.text); } catch { /* Drive not available: fine */ }
+      next();
+    };
+    next();
   }
   deleteShow(name) {
     try { fs.unlinkSync(path.join(this.dir, 'shows', safeName(name) + '.json')); } catch { /* gone */ }

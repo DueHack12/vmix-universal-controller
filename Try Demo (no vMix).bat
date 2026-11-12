@@ -1,5 +1,5 @@
 @echo off
-title Broadcast Console DEMO (no vMix)
+title vMix Universal Controller DEMO (no vMix)
 cd /d "%~dp0"
 where node >nul 2>nul
 if errorlevel 1 (

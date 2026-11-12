@@ -8,13 +8,17 @@
 const http = require('http');
 const { parse, child, children, text } = require('./xml');
 
-function get(host, port, path, timeout = 1500) {
+function get(host, port, path, timeout = 1500, auth = undefined) {
   return new Promise((resolve, reject) => {
-    const req = http.get({ host, port, path, timeout, headers: { Connection: 'keep-alive' } }, (res) => {
+    const req = http.get({ host, port, path, timeout, auth, headers: { Connection: 'keep-alive' } }, (res) => {
       let body = '';
       res.setEncoding('utf8');
       res.on('data', (d) => (body += d));
-      res.on('end', () => (res.statusCode >= 200 && res.statusCode < 300 ? resolve(body) : reject(new Error('vMix HTTP ' + res.statusCode + ': ' + body.slice(0, 120)))));
+      res.on('end', () => {
+        if (res.statusCode >= 200 && res.statusCode < 300) return resolve(body);
+        if (res.statusCode === 401) return reject(new Error('vMix asks for a password: enter the Web Controller user name and password in Master › Setup'));
+        reject(new Error('vMix HTTP ' + res.statusCode + ': ' + body.slice(0, 120)));
+      });
     });
     req.on('timeout', () => req.destroy(new Error('vMix timeout')));
     req.on('error', reject);
@@ -65,14 +69,16 @@ function snapshot(xmlText) {
 }
 
 class VmixClient {
-  constructor({ host = '127.0.0.1', port = 8088 } = {}) {
-    this.host = host; this.port = port;
+  constructor({ host = '127.0.0.1', port = 8088, user = '', password = '' } = {}) {
+    this.host = host; this.port = port; this.user = user; this.password = password;
     this.connected = false; this.lastError = ''; this.snap = null; this.calls = 0;
   }
-  setAddress(host, port) { this.host = host; this.port = Number(port) || 8088; }
+  setAddress(host, port, user = this.user, password = this.password) { this.host = host; this.port = Number(port) || 8088; this.user = user || ''; this.password = password || ''; }
+  /** Basic auth for vMix Web Controller when a user name or password is set */
+  get auth() { return this.user || this.password ? this.user + ':' + this.password : undefined; }
   async poll() {
     try {
-      const body = await get(this.host, this.port, '/api');
+      const body = await get(this.host, this.port, '/api', 1500, this.auth);
       this.snap = snapshot(body);
       this.connected = true; this.lastError = '';
       return this.snap;
@@ -86,7 +92,7 @@ class VmixClient {
     const q = new URLSearchParams({ Function: name });
     for (const [k, v] of Object.entries(params)) if (v !== undefined && v !== null && v !== '') q.set(k, String(v));
     this.calls++;
-    return get(this.host, this.port, '/api/?' + q.toString());
+    return get(this.host, this.port, '/api/?' + q.toString(), 1500, this.auth);
   }
 }
 

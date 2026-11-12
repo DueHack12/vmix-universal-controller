@@ -1,4 +1,4 @@
-/* Broadcast Console: control page (vertical 1080x1920 or horizontal 1920x1080). */
+/* vMix Universal Controller: control page (vertical 1080x1920 or horizontal 1920x1080). */
 'use strict';
 (() => {
   const { esc, attr, mmss, hms, meterPct, cmd, patch } = BC;
@@ -57,7 +57,7 @@
     const conn = S.vmix.connected;
     const rec = t.recording ? hold('● REC ' + hms(t.recordingDuration), 'rec.stop', {}, 'b-red b-sm') : btn('○ REC', 'rec.start', {}, 'b-sm');
     patch(document.getElementById('top'), `
-      <div class="logo">BC</div>
+      <div class="logo">UC</div>
       <div class="grow ellipsis" style="font-weight:700">${esc(S.show.name)}</div>
       <span class="pill"><span class="dot" style="background:${conn ? '#3FB950' : '#FF6B6B'}"></span>vMix ${conn ? esc(S.vmix.version || '') : 'offline'}</span>
       <a class="pill" href="/master" style="text-decoration:none">⚙ Master</a><button class="pill" data-ui="resetView" title="Back to the show's default open/closed sections">Reset view</button>
@@ -362,7 +362,7 @@
 
   // keyboard shortcuts (not while typing)
   document.addEventListener('keydown', (e) => {
-    if (e.target.matches('input, select, textarea') || e.ctrlKey || e.metaKey || e.altKey) return;
+    if (e.repeat || e.target.matches('input, select, textarea') || e.ctrlKey || e.metaKey || e.altKey) return; // holding a key must not repeat TAKE
     const g = S && (S.graphics.items.find((x) => x.id === ui.gfx) || S.graphics.items[0]);
     const map = { ' ': ['music.toggle'], f: ['music.fadeout'], n: ['music.next'], t: g ? ['gfx.take', { id: g.id }] : null, o: g ? ['gfx.out', { id: g.id }] : null, c: ['video.next'], p: ['video.playpause'] };
     const a = map[e.key.toLowerCase()];

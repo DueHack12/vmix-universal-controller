@@ -96,3 +96,67 @@ test('links: auto-match by name and type', () => {
   const g = autoMatch(inputs, {});
   assert.equal(g.music.key, 'm'); assert.equal(g.ads.key, 'a'); assert.equal(g.videos.key, 'v'); assert.equal(g.gameCam.key, 'c1');
 });
+
+/* ---------- PIN / request checks (src/auth.js) ---------- */
+const { createAuth } = require('../src/auth');
+const fakeStore = () => ({ config: { pin: '', oscAllow: [] }, saveConfig() {} });
+const fakeReq = (ip, headers = {}) => ({ socket: { remoteAddress: ip }, headers: { host: '192.168.1.5:8790', ...headers } });
+
+test('PIN: off = everyone; on = other devices need the PIN cookie; this PC never does', () => {
+  const store = fakeStore(); const a = createAuth(store);
+  const ipad = fakeReq('192.0.2.44');
+  assert.ok(a.allowed(ipad), 'no PIN set');
+  assert.equal(a.setPin('12').ok, false);
+  assert.ok(a.setPin('2468').ok);
+  assert.ok(!a.allowed(ipad), 'PIN needed now');
+  assert.ok(a.allowed(fakeReq('127.0.0.1')) && a.allowed(fakeReq('::ffff:127.0.0.1')), 'this PC');
+  assert.equal(a.login(ipad, '1111').ok, false);
+  const ok = a.login(ipad, '2468'); assert.ok(ok.ok && ok.cookie.includes('HttpOnly'));
+  const c = ok.cookie.split(';')[0];
+  assert.ok(a.allowed(fakeReq('192.0.2.44', { cookie: c })), 'cookie works');
+  assert.ok(a.allowed(fakeReq('192.0.2.50'), '2468'), 'Companion ?pin=');
+  a.setPin('1357');
+  assert.ok(!a.allowed(fakeReq('192.0.2.44', { cookie: c })), 'changing the PIN signs devices out');
+});
+
+test('PIN: five wrong tries lock that device for a while', () => {
+  const a = createAuth(fakeStore()); a.setPin('2468');
+  const r = fakeReq('192.0.2.9');
+  for (let i = 0; i < 5; i++) a.login(r, '0000');
+  const res = a.login(r, '2468');
+  assert.equal(res.ok, false); assert.match(res.error, /Too many/);
+  assert.ok(a.login(fakeReq('192.0.2.10'), '2468').ok, 'other devices unaffected');
+});
+
+test('cross-site and host checks', () => {
+  const a = createAuth(fakeStore());
+  assert.ok(a.crossSite(fakeReq('1.2.3.4', { origin: 'http://evil.example' })));
+  assert.ok(a.crossSite(fakeReq('1.2.3.4', { 'sec-fetch-site': 'same-site' })));
+  assert.ok(!a.crossSite(fakeReq('1.2.3.4', { origin: 'http://192.168.1.5:8790', 'sec-fetch-site': 'same-origin' })));
+  assert.ok(!a.crossSite(fakeReq('1.2.3.4')), 'Companion sends no browser headers');
+  assert.ok(a.hostOk(fakeReq('1.2.3.4')));
+  assert.ok(a.hostOk(fakeReq('1.2.3.4', { host: 'localhost:8790' })));
+  assert.ok(a.hostOk(fakeReq('1.2.3.4', { host: '[::1]:8790' })));
+  assert.ok(!a.hostOk(fakeReq('1.2.3.4', { host: 'rebind.attacker.example:8790' })));
+});
+
+test('OSC allow list', () => {
+  const a = createAuth(fakeStore());
+  assert.ok(a.oscAllowed('192.0.2.1'), 'empty list = anyone');
+  assert.equal(a.setOscAllow('192.0.2.20, nope').ok, false);
+  assert.ok(a.setOscAllow('192.0.2.20, 192.0.2.21').ok);
+  assert.ok(a.oscAllowed('192.0.2.21') && a.oscAllowed('127.0.0.1'));
+  assert.ok(!a.oscAllowed('192.0.2.1'));
+});
+
+/* ---------- live state patches (src/statediff.js) ---------- */
+const sd = require('../src/statediff');
+test('state patches rebuild the same state', () => {
+  const s1 = { v: 1, music: { level: 50, songs: [1, 2] }, tally: null, ads: { phase: 'idle', library: ['a'] } };
+  const s2 = { v: 2, music: { level: 60, songs: [1, 2] }, tally: { rec: true }, ads: { phase: 'idle', library: ['a'], timer: 3 } };
+  const d = sd.diff(sd.flatten(s1), sd.flatten(s2), s2);
+  assert.deepEqual(d.merge.music, { level: 60 }, 'unchanged song list not resent');
+  assert.ok(d.set.ads, 'new sub-key: whole section resent');
+  assert.deepEqual(sd.apply(s1, d), s2);
+  assert.equal(sd.diff(sd.flatten(s2), sd.flatten(s2), s2), null, 'no change, no message');
+});

@@ -1,4 +1,4 @@
-/* Broadcast Remotes: touch control for iPad / phone.  /remote  or  /remote?view=mixer|ads|music|graphics|videos */
+/* vMix UC Remotes: touch control for iPad / phone.  /remote  or  /remote?view=mixer|ads|music|graphics|videos */
 'use strict';
 (() => {
   const { esc, attr, mmss, meterPct, patch } = BC;
@@ -12,7 +12,7 @@
 
   function top() {
     const t = S.tally || {};
-    patch($('top'), `<div class="logo">BC</div><b class="grow" style="font-size:16px">${fixed ? esc((TABS.find((x) => x[0] === fixed) || [, 'Remote'])[1]) : 'Broadcast Remotes'} <span class="muted small">· ${esc(S.show.name)}</span></b>
+    patch($('top'), `<div class="logo">UC</div><b class="grow" style="font-size:16px">${fixed ? esc((TABS.find((x) => x[0] === fixed) || [, 'Remote'])[1]) : 'vMix UC Remotes'} <span class="muted small">· ${esc(S.show.name)}</span></b>
       ${fixed ? '' : `<span class="row tabs">${TABS.map(([k, l]) => `<button class="${k === tab ? 'b-sel' : ''}" data-tab="${k}">${l}</button>`).join('')}</span>`}
       <span class="pill"><span class="dot" style="background:${S.vmix.connected ? '#3FB950' : '#FF6B6B'}"></span>${S.vmix.connected ? 'vMix' : 'vMix offline'}</span>
       <span class="${t.streaming ? 'tag-live' : 'tag-off'}">${t.streaming ? '● LIVE' : 'OFF AIR'}</span>`);

@@ -144,7 +144,7 @@ class Media {
     this.cacheFile = store.cachePath('durations.json');
     try { this.cache = JSON.parse(fs.readFileSync(this.cacheFile, 'utf8')); } catch { this.cache = {}; }
     this.dirty = false;
-    this.thumbQueue = []; this.thumbBusy = 0; this.thumbFails = new Set();
+    this.thumbQueue = []; this.thumbBusy = 0; this.thumbFails = new Set(); this.thumbsKnown = new Set();
   }
   get ffprobe() { return findTool('ffprobe', this.store.config.ffprobePath); }
   get ffmpeg() { return findTool('ffmpeg', this.store.config.ffmpegPath); }
@@ -156,7 +156,7 @@ class Media {
 
   /** { seconds, source } with source = cache-able: mp4|mp3|wav|ffprobe|filename|none */
   async duration(file) {
-    let st; try { st = fs.statSync(file); } catch { return { seconds: null, source: 'missing' }; }
+    let st; try { st = await fs.promises.stat(file); } catch { return { seconds: null, source: 'missing' }; }
     const stamp = st.size + ':' + Math.round(st.mtimeMs);
     const c = this.cache[file];
     if (c && c.stamp === stamp) return { seconds: c.seconds, source: c.source };
@@ -179,7 +179,7 @@ class Media {
   async scan(dir, kind = 'any') {
     const exts = kind === 'video' ? VIDEO_EXT : kind === 'audio' ? AUDIO_EXT : VIDEO_EXT.concat(AUDIO_EXT);
     let names = [];
-    try { names = fs.readdirSync(dir, { withFileTypes: true }).filter((d) => d.isFile() && exts.includes(path.extname(d.name).toLowerCase())).map((d) => d.name); } catch { return []; }
+    try { names = (await fs.promises.readdir(dir, { withFileTypes: true })).filter((d) => d.isFile() && exts.includes(path.extname(d.name).toLowerCase())).map((d) => d.name); } catch { return []; }
     names.sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
     const out = [];
     const work = names.map((n) => async () => {
@@ -198,10 +198,18 @@ class Media {
   subfolders(dir) {
     try { return fs.readdirSync(dir, { withFileTypes: true }).filter((d) => d.isDirectory() && !d.name.startsWith('_') && !d.name.startsWith('.')).map((d) => d.name).sort(); } catch { return []; }
   }
+  /** same as subfolders(), without blocking the server while Google Drive is slow */
+  async subfoldersAsync(dir) {
+    try { return (await fs.promises.readdir(dir, { withFileTypes: true })).filter((d) => d.isDirectory() && !d.name.startsWith('_') && !d.name.startsWith('.')).map((d) => d.name).sort(); } catch { return []; }
+  }
 
   thumbId(file) { return crypto.createHash('sha1').update(file).digest('hex').slice(0, 20); }
   thumbPath(file) { return this.store.cachePath('thumbs', this.thumbId(file) + '.jpg'); }
-  hasThumb(file) { try { return fs.statSync(this.thumbPath(file)).size > 0; } catch { return false; } }
+  hasThumb(file) {
+    if (this.thumbsKnown.has(file)) return true;
+    try { if (fs.statSync(this.thumbPath(file)).size > 0) { this.thumbsKnown.add(file); return true; } } catch { /* not yet */ }
+    return false;
+  }
   /** Queue a thumbnail; returns true if one already exists. */
   wantThumb(file) {
     if (this.hasThumb(file)) return true;

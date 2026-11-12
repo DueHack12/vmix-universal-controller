@@ -1,4 +1,4 @@
-/* Broadcast Console: shared browser helpers (no build step). */
+/* vMix Universal Controller: shared browser helpers (no build step). */
 'use strict';
 window.BC = (() => {
   let state = null; const subs = [];
@@ -18,6 +18,7 @@ window.BC = (() => {
   async function cmd(name, args) {
     try {
       const r = await fetch('/api/cmd', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ cmd: name, args: args || {} }) });
+      if (r.status === 401) { toLogin(); return { ok: false }; }
       const j = await r.json().catch(() => ({ ok: false, error: 'Bad reply' }));
       if (!j.ok && j.error) toast(j.error);
       if (j.note) toast(j.note);
@@ -25,10 +26,22 @@ window.BC = (() => {
     } catch (e) { toast('Console not reachable: ' + e.message); return { ok: false }; }
   }
 
+  /* live state: first message { full }, then { set, merge } with only what changed (see src/statediff.js) */
+  function apply(msg) {
+    if (msg.full) return msg.full;
+    const s = { ...(state || {}) };
+    for (const [k, v] of Object.entries(msg.set || {})) s[k] = v;
+    for (const [k, v] of Object.entries(msg.merge || {})) s[k] = { ...(s[k] || {}), ...v };
+    return s;
+  }
+  function toLogin() { location.href = '/login?next=' + encodeURIComponent(location.pathname + location.search + location.hash); }
   function connect() {
     const es = new EventSource('/api/events');
-    es.onmessage = (e) => { state = JSON.parse(e.data); for (const f of subs) f(state); };
-    es.onerror = () => { for (const f of subs) f(null); };
+    es.onmessage = (e) => { state = apply(JSON.parse(e.data)); for (const f of subs) f(state); };
+    es.onerror = () => {
+      for (const f of subs) f(null);
+      fetch('/api/state', { method: 'HEAD' }).then((r) => { if (r.status === 401) toLogin(); }).catch(() => {});
+    };
   }
   function onState(f) { subs.push(f); if (state) f(state); }
 
