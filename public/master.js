@@ -24,11 +24,12 @@
     const ST = { ok: ['✓ linked', 'ok'], guess: ['check: best guess', 'warn'], missing: ['not linked', 'bad'], gone: ['input missing in vMix', 'bad'] };
     const jobs = S.links.jobs.map((j) => `<tr class="r"><td><b>${esc(j.label)}</b><div class="tiny muted">${esc(j.hint)}</div></td>
       <td>${select('link.set', { job: j.id }, 'key', jobsOpts(j.key), j.key, 'style="width:100%"')}</td>
-      <td class="small ${ST[j.status][1]}">${S.links.picking === j.id ? '<span style="color:var(--blue-text)">◎ waiting… put it in Preview in vMix</span>' : ST[j.status][0]}</td>
-      <td style="white-space:nowrap">${S.links.picking === j.id ? btn('Cancel', 'link.cancelPick', {}, 'b-sm') : btn('◎ Pick in vMix', 'link.pick', { job: j.id }, 'b-sm b-dash')} ${j.key ? btn('Identify', 'link.identify', { key: j.key }, 'b-sm', 'title="Puts it in vMix Preview (never Program)"') : ''}</td></tr>`).join('');
+      <td class="small ${ST[j.status][1]}">${S.links.picking === j.id ? '<span style="color:var(--blue-text)">◎ waiting… click the input in vMix so it goes to Preview</span>' : ST[j.status][0]}</td>
+      <td style="white-space:nowrap">${S.links.picking === j.id ? (S.links.previewTitle ? btn('Use “' + esc(S.links.previewTitle) + '” (already in Preview)', 'link.usePreview', { job: j.id }, 'b-sm') + ' ' : '') + btn('Cancel', 'link.cancelPick', {}, 'b-sm') : btn('◎ Pick in vMix', 'link.pick', { job: j.id }, 'b-sm b-dash')} ${j.key ? btn('Identify', 'link.identify', { key: j.key }, 'b-sm', 'title="Puts it in vMix Preview (never Program)"') : ''}</td></tr>`).join('');
     return panel('1 · Find vMix', `<div class="muted small">vMix needs one setting: <b>Settings › Web Controller › on</b> (port 8088). On the vMix PC the address is 127.0.0.1.</div>
         <div class="row wrap"><span class="pill"><span class="dot" style="background:${S.vmix.connected ? '#3FB950' : '#FF6B6B'}"></span>${S.vmix.connected ? 'Connected · vMix ' + esc(S.vmix.edition + ' ' + S.vmix.version) + ' · ' + S.inputs.length + ' inputs' : 'Not connected: ' + esc(S.vmix.error)}</span>
-        <input id="vhost" style="width:170px" value="${esc(S.vmix.host)}"><input id="vport" style="width:90px" value="${esc(S.vmix.port)}"><button data-act="vmix">Connect</button></div>`)
+        <input id="vhost" style="width:170px" value="${esc(S.vmix.host)}"><input id="vport" style="width:90px" value="${esc(S.vmix.port)}"><button data-act="vmix">Connect</button></div>
+        <div class="row wrap"><span class="small muted">Only if you set a password in vMix › Web Controller:</span><input id="vuser" style="width:140px" placeholder="user name" value="${esc(S.vmix.user)}"><input id="vpass" type="password" style="width:140px" placeholder="password" value="${S.vmix.hasPassword ? '••••••••' : ''}"></div>`)
       + panel('2 · Assign jobs', `<div class="muted small">Matched automatically. Easiest fix: <b>◎ Pick in vMix</b>, then click the input in vMix so it goes to <b style="color:#3FB950">Preview</b>. Links use vMix's permanent input ID, so renaming inputs later is fine.</div>
         <table class="t"><thead><tr><th>Job</th><th>vMix input</th><th>Status</th><th></th></tr></thead><tbody>${jobs}</tbody></table><div class="row">${btn('⟳ Auto-match again', 'link.auto', {})}</div>`)
       + panel('3 · Drive folders', `<div class="muted small">Read and copy only: nothing on the Drive is ever moved, renamed or deleted.</div>
@@ -45,7 +46,11 @@
         <div class="row wrap"><label class="small"><input type="checkbox" ${S.previews.enabled ? 'checked' : ''} data-cmd="previews.set" data-key="enabled"> Monitor pictures from vMix snapshots (about 1 per second${S.previews.local ? '' : '; only works when vMix is on this PC'})</label></div>
         <div class="row wrap"><label class="small"><input type="checkbox" ${S.config.beginner ? 'checked' : ''} data-cmd="ui.set" data-key="beginner"> Beginner mode: hover any button on the control page to see what it does</label></div>
         <div class="small muted">iPad / phone remotes: open <span class="mono">http://${esc(S.config.host)}:${S.config.port}/remote</span> (tabs) or <span class="mono">/remote?view=mixer</span> · <span class="mono">ads</span> · <span class="mono">music</span> · <span class="mono">graphics</span> · <span class="mono">videos</span> on the school network, then “Add to Home Screen”.</div>`)
-      + panel('Log', `<pre class="small mono" style="white-space:pre-wrap;color:var(--muted);margin:0">${esc(S.log.slice().reverse().join('\n') || 'Nothing yet.')}</pre>`);
+      + panel('6 · Security', `<div class="small muted">With a PIN, iPads, phones and other computers must enter it once before they can use the controller. This PC never needs it. Companion over HTTP: add <span class="mono">?pin=…</span> to the URL.</div>
+        <div class="row wrap"><span class="small muted" style="width:160px">PIN (4–8 digits)</span><input id="pin" type="password" inputmode="numeric" style="width:140px" placeholder="${S.config.pin ? 'PIN is set' : 'no PIN'}"><button data-act="pin">Save PIN</button>${S.config.pin ? '<button data-act="pinOff" data-confirm="Turn the PIN off? Anyone on the network can then use the controller.">Turn off</button><span class="small ok">✓ PIN on</span>' : '<span class="small warn">No PIN: anyone on this network can use the controller</span>'}</div>
+        <div class="row wrap"><span class="small muted" style="width:160px">OSC (UDP) only from</span><input id="oscAllow" class="grow" placeholder="anyone, or Companion's IP (e.g. 192.168.1.20)" value="${esc((S.config.oscAllow || []).join(', '))}"><button data-act="oscAllow">Save</button></div>
+        <div class="small muted">These can only be changed on the vMix PC itself.</div>`)
+      + panel('Log', `<div class="small muted">Also saved to <span class="mono">${esc(S.config.logFile)}</span> · <a href="/api/log" style="color:var(--blue-text)">download today's log</a> (send it along when something goes wrong)</div><pre class="small mono" style="white-space:pre-wrap;color:var(--muted);margin:0">${esc(S.log.slice().reverse().join('\n') || 'Nothing yet.')}</pre>`);
   }
 
   /* ---------- Graphics ---------- */
@@ -198,6 +203,14 @@ Feedback: /fb/youtube/live · /fb/youtube/viewers · /fb/mix/selected · /fb/mix
       + panel('This show', `<div class="row wrap"><span class="small muted">Name</span>${input('show.rename', {}, 'name', S.show.name)}<span class="small muted">Sport (stat pop events)</span>${select('show.sport', {}, 'sport', [['', 'from the name'], 'Soccer', 'Football', 'Basketball', 'Lacrosse', 'Hockey', 'Baseball'], S.sport)}</div>`);
   }
 
+  async function setSecurity(url, body) {
+    try {
+      const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      const j = await r.json(); BC.toast(j.ok ? 'Saved' : j.error || 'Not saved');
+      if (j.ok && $('pin')) $('pin').value = '';
+    } catch (e) { BC.toast('Not saved: ' + e.message); }
+  }
+
   const R = { setup, graphics, ads, music, mixer, stream, layout, companion, shows };
   function render() {
     if (!S) return;
@@ -224,7 +237,10 @@ Feedback: /fb/youtube/live · /fb/youtube/viewers · /fb/mix/selected · /fb/mix
     const a = e.target.closest('[data-act]'); if (!a) return;
     const v = (id) => ($(id) ? $(id).value : '');
     switch (a.dataset.act) {
-      case 'vmix': cmd('config.set', { vmixHost: v('vhost'), vmixPort: v('vport') }); break;
+      case 'vmix': { const pw = v('vpass'); cmd('config.set', { vmixHost: v('vhost'), vmixPort: v('vport'), vmixUser: v('vuser'), ...(pw.startsWith('•') ? {} : { vmixPassword: pw }) }); break; }
+      case 'pin': setSecurity('/api/pin', { pin: v('pin') }); break;
+      case 'pinOff': if (confirm(a.dataset.confirm)) setSecurity('/api/pin', { pin: '' }); break;
+      case 'oscAllow': setSecurity('/api/osc-allow', { list: v('oscAllow') }); break;
       case 'drive': cmd('config.set', { driveRoot: v('drive') }); break;
       case 'recdrive': cmd('config.set', { recordDrive: v('recdrive') }); break;
       case 'ose': cmd('ose.set', { url: v('ose') }); break;

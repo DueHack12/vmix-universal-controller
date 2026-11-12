@@ -54,6 +54,16 @@ module.exports = (engine) => {
   });
   engine.cmd('link.pick', ({ job }) => { picking = { job, fromPreview: engine.snap ? engine.snap.preview : 0 }; return { ok: true }; });
   engine.cmd('link.cancelPick', () => { picking = null; return { ok: true }; });
+  // the input you want may already be in Preview (clicking it again changes nothing in vMix): take it as is
+  engine.cmd('link.usePreview', ({ job } = {}) => {
+    const j = job || (picking && picking.job);
+    const inp = engine.snap ? engine.inputByNumber(engine.snap.preview) : null;
+    if (!j || !JOBS.some((x) => x.id === j)) return { ok: false, error: 'Which job?' };
+    if (!inp) return { ok: false, error: 'Nothing in vMix Preview' };
+    setLink(j, inp.key); picking = null;
+    engine.log('Linked ' + j + ' to "' + inp.title + '" (already in Preview)');
+    return { ok: true };
+  });
   engine.cmd('link.identify', async ({ key }) => engine.fn('PreviewInput', { Input: key }));
 
   return {
@@ -75,6 +85,7 @@ module.exports = (engine) => {
     state() {
       return {
         picking: picking ? picking.job : null,
+        previewTitle: engine.snap ? (engine.inputByNumber(engine.snap.preview) || {}).title || '' : '',
         jobs: JOBS.map((j) => {
           const inp = engine.input(j.id);
           const key = engine.show.links[j.id] || '';

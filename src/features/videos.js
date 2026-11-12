@@ -6,6 +6,7 @@
  */
 const fs = require('fs');
 const path = require('path');
+const { VIDEO_EXT } = require('../media');
 
 module.exports = (engine) => {
   const cfg = () => engine.show.videos;
@@ -17,11 +18,13 @@ module.exports = (engine) => {
   const nameOf = (p) => (p ? path.basename(p).replace(/\.[^.]+$/, '') : '');
   const onAir = () => { const i = vinp(); return !!(i && engine.snap && engine.snap.active === i.number); };
 
-  function folders() { return engine.media.subfolders(root()); }
+  /** folder list for the pages: cached, refreshed in the background (Drive can be slow) */
+  function folders() { return engine.cached('videoFolders:' + root(), 10000, () => engine.media.subfoldersAsync(root()), []); }
   async function rescan() {
     if (scanning) return; scanning = true;
     try {
-      const fl = folders();
+      const fl = await engine.media.subfoldersAsync(root());
+      engine.setCached('videoFolders:' + root(), fl);
       if (!cfg().folder || !fl.includes(cfg().folder)) cfg().folder = fl[0] || '';
       clips = cfg().folder ? await engine.media.scan(path.join(root(), cfg().folder), 'video') : [];
       for (const c of clips) engine.media.wantThumb(c.path);
@@ -64,12 +67,20 @@ module.exports = (engine) => {
   engine.cmd('video.rescan', async () => { await rescan(); return { ok: true }; });
   engine.cmd('video.autoCue', ({ value }) => { cfg().autoCueNext = !!value; engine.save(); return { ok: true }; });
 
-  /** Save an uploaded file into a Videos folder. Never overwrites: picks "name (2).mp4". */
+  /**
+   * Where an uploaded file goes: an existing folder under <Drive>\Videos (or Highlights when there are none yet).
+   * Only video files. Never overwrites: picks "name (2).mp4". Throws with a message the operator can read.
+   */
   function uploadTarget(folder, fileName) {
-    const dir = path.join(root(), folder || cfg().folder || 'Highlights');
+    const existing = engine.media.subfolders(root());
+    const name = String(folder || cfg().folder || existing[0] || 'Highlights');
+    if (existing.length ? !existing.includes(name) : name !== 'Highlights') throw new Error('Unknown video folder: ' + name);
+    const dir = path.join(root(), name);
+    if (path.dirname(path.resolve(dir)) !== path.resolve(root())) throw new Error('Unknown video folder: ' + name);
     fs.mkdirSync(dir, { recursive: true });
-    const base = path.basename(String(fileName || 'upload.mp4')).replace(/[<>:"/\\|?*]+/g, '_');
+    const base = path.basename(String(fileName || 'upload.mp4').replace(/\\/g, '/')).replace(/[<>:"/\\|?*\x00-\x1f]+/g, '_').replace(/^\.+/, '');
     const ext = path.extname(base); const stem = base.slice(0, base.length - ext.length);
+    if (!stem || !VIDEO_EXT.includes(ext.toLowerCase())) throw new Error('Only video files can be uploaded (' + VIDEO_EXT.join(' ') + ')');
     let target = path.join(dir, base); let n = 2;
     while (fs.existsSync(target)) target = path.join(dir, `${stem} (${n++})${ext}`);
     return target;

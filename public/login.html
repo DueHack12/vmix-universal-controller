@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>vMix Universal Controller · PIN</title>
+<link rel="stylesheet" href="/styles.css">
+<style>
+  .box { max-width: 360px; margin: 12vh auto 0; padding: 0 16px; display: flex; flex-direction: column; gap: 14px; }
+  #pin { font-size: 28px; letter-spacing: 8px; text-align: center; padding: 14px; }
+  #go { font-size: 18px; padding: 14px; }
+</style>
+</head>
+<body>
+<form class="box panel" id="f" autocomplete="off">
+  <div class="row"><div class="logo" style="width:44px;height:44px;font-size:16px">VUC</div><h1 class="grow">Enter PIN</h1></div>
+  <div class="small muted">This controller has a PIN. Ask the operator at the vMix PC for it. You only need to enter it once on this device.</div>
+  <input id="pin" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="8" autofocus aria-label="PIN">
+  <button id="go" class="b-red" type="submit">Sign in</button>
+  <div id="msg" class="small bad" role="alert"></div>
+</form>
+<script>
+'use strict';
+document.getElementById('f').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const msg = document.getElementById('msg'); msg.textContent = '';
+  try {
+    const r = await fetch('/api/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pin: document.getElementById('pin').value }) });
+    const j = await r.json();
+    if (!j.ok) { msg.textContent = j.error || 'Wrong PIN'; return; }
+    const next = new URLSearchParams(location.search).get('next') || '/';
+    location.href = next.startsWith('/') && !next.startsWith('//') ? next : '/';
+  } catch (err) { msg.textContent = 'Controller not reachable: ' + err.message; }
+});
+</script>
+</body>
+</html>

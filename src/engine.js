@@ -8,6 +8,11 @@ const fs = require('fs');
 const os = require('os');
 const { VmixClient } = require('./vmix');
 const { Media } = require('./media');
+const { safeName } = require('./store');
+const pkg = require('../package.json');
+
+/** two show names that end up as the same file (Windows ignores capitals) */
+const sameShow = (a, b) => safeName(a).toLowerCase() === safeName(b).toLowerCase();
 
 const FEATURES = ['links', 'ose', 'bridge', 'graphics', 'videos', 'music', 'ads', 'mixer', 'health', 'youtube', 'previews'];
 
@@ -24,6 +29,8 @@ class Engine {
     this.features = {};
     this.version = 0;
     this.pollSeq = 0;
+    this.cacheEntries = new Map();
+    this.logQueue = Promise.resolve();
     for (const f of FEATURES) {
       const mod = require('./features/' + f)(this);
       this.features[f] = mod;
@@ -37,12 +44,11 @@ class Engine {
     this.cmd('rec.stop', () => this.fn('StopRecording'));
     this.cmd('stream.toggle', () => this.fn('StartStopStreaming'));
     this.cmd('show.sport', ({ sport }) => { this.show.sport = String(sport || ''); this.save(); return { ok: true }; });
-    this.cmd('show.rename', ({ name }) => {
-      if (!name) return { ok: false, error: 'Name needed' };
-      const old = this.show.name; this.show.name = String(name).trim(); this.save(true);
-      this.store.deleteShow(old); this.store.config.currentShow = this.show.name; this.store.saveConfig(); return { ok: true };
+    this.cmd('show.rename', ({ name }) => this.renameShow(name));
+    this.cmd('show.delete', ({ name }) => {
+      if (sameShow(name, this.show.name)) return { ok: false, error: 'Load another show first' };
+      this.store.deleteShow(name); return { ok: true };
     });
-    this.cmd('show.delete', ({ name }) => { if (name === this.show.name) return { ok: false, error: 'Load another show first' }; this.store.deleteShow(name); return { ok: true }; });
     this.cmd('layout.set', ({ layout, order, hidden, open }) => {
       const L = (this.show.layout = this.show.layout || {}); const k = layout === 'horizontal' ? 'horizontal' : 'vertical';
       L[k] = { ...(L[k] || {}), ...(order ? { order } : {}), ...(hidden ? { hidden } : {}), ...(open ? { open } : {}) };
@@ -55,13 +61,43 @@ class Engine {
 
   /* ---------- helpers for features ---------- */
   cmd(name, handler) { this.commands[name] = handler; }
-  log(msg) { const line = new Date().toLocaleTimeString() + '  ' + msg; this.logLines.push(line); if (this.logLines.length > 200) this.logLines.shift(); if (process.env.BC_VERBOSE) console.log(line); }
+  /** Log a line: kept for the Master page, appended to data/logs/YYYY-MM-DD.log, and printed when important. */
+  log(msg, important = false) {
+    const now = new Date();
+    const line = now.toLocaleTimeString() + '  ' + msg;
+    this.logLines.push(line); if (this.logLines.length > 200) this.logLines.shift();
+    if (important || process.env.VUC_VERBOSE || process.env.BC_VERBOSE) console.log(line);
+    const file = this.logFile(now);
+    const text = now.toISOString() + '  ' + msg + '\n';
+    this.logQueue = this.logQueue.then(() => fs.promises.mkdir(path.dirname(file), { recursive: true })).then(() => fs.promises.appendFile(file, text)).catch(() => {});
+  }
+  logFile(d = new Date()) {
+    const day = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+    return path.join(this.store.dir, 'logs', day + '.log');
+  }
+  /**
+   * A value that is slow to get (Google Drive folders): returns the last known value at once and
+   * refreshes it in the background when older than ttlMs. A stalled Drive never blocks the server.
+   */
+  cached(key, ttlMs, fn, initial) {
+    let e = this.cacheEntries.get(key);
+    if (!e) { e = { value: initial, at: 0, busy: false }; this.cacheEntries.set(key, e); }
+    if (!e.busy && Date.now() - e.at > ttlMs) {
+      e.busy = true;
+      Promise.resolve().then(fn).then((v) => {
+        const diff = JSON.stringify(v) !== JSON.stringify(e.value);
+        e.value = v; if (diff) this.changed();
+      }, () => {}).finally(() => { e.busy = false; e.at = Date.now(); });
+    }
+    return e.value;
+  }
+  setCached(key, value) { const e = this.cacheEntries.get(key) || { busy: false }; e.value = value; e.at = Date.now(); this.cacheEntries.set(key, e); }
   async fn(name, params = {}) {
     try { await this.vmix.fn(name, params); return { ok: true }; } catch (e) { this.log('vMix ' + name + ' failed: ' + e.message); return { ok: false, error: e.message }; }
   }
   inputs() { return this.snap ? this.snap.inputs : []; }
   /** re-read vMix now (use before decisions that depend on state a previous call just changed) */
-  async refresh() { const seq = ++this.pollSeq; try { const snap = await this.vmix.poll(); if (seq === this.pollSeq) this.snap = snap; } catch { /* keep last */ } return this.snap; }
+  async refresh() { const seq = ++this.pollSeq; try { const snap = await this.vmix.poll(); if (seq === this.pollSeq) this.snap = snap; } catch { /* keep last */ } this.changed(); return this.snap; }
   inputByKey(key) { return key ? this.inputs().find((i) => i.key === key) || null : null; }
   inputByNumber(n) { return n ? this.inputs().find((i) => i.number === n) || null : null; }
   /** linked input for a job, falling back to the title it had when it was linked */
@@ -89,23 +125,40 @@ class Engine {
     return { ok: true, show: this.show.name };
   }
   newShow(name, copyFrom) {
+    name = String(name || '').trim();
     if (!name) return { ok: false, error: 'Name needed' };
+    if (this.store.listShows().some((n) => sameShow(n, name))) return { ok: false, error: 'A show called "' + name + '" already exists. Load it, or pick another name.' };
     const base = copyFrom ? this.store.loadShow(copyFrom) : this.store.loadShow(name);
     base.name = name;
     this.store.saveShow(base);
     return this.loadShow(name);
   }
+  /** Rename the current show. Same name (or only different capitals) keeps the file; never overwrites another show. */
+  renameShow(name) {
+    const next = String(name || '').trim();
+    if (!next) return { ok: false, error: 'Name needed' };
+    const old = this.show.name;
+    const sameFile = sameShow(next, old);
+    if (!sameFile && this.store.listShows().some((n) => sameShow(n, next))) return { ok: false, error: 'A show called "' + next + '" already exists' };
+    if (sameFile && safeName(next) !== safeName(old)) this.store.deleteShow(old); // capitals changed: rewrite under the new spelling
+    this.show.name = next; this.save(true);
+    if (!sameFile) this.store.deleteShow(old);
+    this.store.config.currentShow = this.show.name; this.store.saveConfig();
+    return { ok: true };
+  }
   setConfig(a) {
     const c = this.store.config;
     if (a.vmixHost !== undefined) c.vmix.host = String(a.vmixHost).trim() || '127.0.0.1';
     if (a.vmixPort !== undefined) c.vmix.port = Number(a.vmixPort) || 8088;
+    if (a.vmixUser !== undefined) c.vmix.user = String(a.vmixUser).trim();
+    if (a.vmixPassword !== undefined) c.vmix.password = String(a.vmixPassword);
     if (a.driveRoot !== undefined) c.driveRoot = String(a.driveRoot).trim();
     if (a.oscFeedbackHost !== undefined) c.oscFeedback.host = String(a.oscFeedbackHost).trim();
     if (a.oscFeedbackPort !== undefined) c.oscFeedback.port = Number(a.oscFeedbackPort) || 0;
     if (a.recordDrive !== undefined) c.recordDrive = String(a.recordDrive).trim();
     if (a.ffmpegPath !== undefined) c.ffmpegPath = String(a.ffmpegPath).trim();
     if (a.ffprobePath !== undefined) c.ffprobePath = String(a.ffprobePath).trim();
-    this.vmix.setAddress(c.vmix.host, c.vmix.port);
+    this.vmix.setAddress(c.vmix.host, c.vmix.port, c.vmix.user, c.vmix.password);
     this.store.saveConfig();
     for (const f of Object.values(this.features)) if (f.onConfig) f.onConfig();
     this.changed();
@@ -158,12 +211,28 @@ class Engine {
   }
   stop() { clearTimeout(this.pollTimer); for (const f of Object.values(this.features)) if (f.stop) f.stop(); }
 
+  /** The state pages, remotes and Companion see. Re-used for 100 ms when nothing changed (SSE + feedback ask often). */
   state() {
+    const now = Date.now();
+    if (this.memo && this.memo.v === this.version && this.memo.snap === this.snap && now - this.memo.at < 100) return this.memo.s;
+    const s = this.buildState();
+    this.memo = { v: this.version, snap: this.snap, at: now, s };
+    return s;
+  }
+  buildState() {
+    const c = this.store.config;
+    const root = c.driveRoot;
     const s = {
       v: this.version,
+      app: { name: 'vMix Universal Controller', version: pkg.version },
       show: { name: this.show.name, list: this.store.listShows() },
-      vmix: { connected: this.vmix.connected, host: this.vmix.host, port: this.vmix.port, error: this.vmix.lastError, version: this.snap ? this.snap.version : '', edition: this.snap ? this.snap.edition : '' },
-      config: { beginner: !!this.store.config.beginner, driveRoot: this.store.config.driveRoot, driveFound: fs.existsSync(this.store.config.driveRoot), oscPort: this.store.config.oscPort, oscFeedback: this.store.config.oscFeedback, port: this.store.config.port, host: os.hostname() },
+      vmix: { connected: this.vmix.connected, host: this.vmix.host, port: this.vmix.port, user: c.vmix.user || '', hasPassword: !!c.vmix.password, error: this.vmix.lastError, version: this.snap ? this.snap.version : '', edition: this.snap ? this.snap.edition : '' },
+      config: {
+        beginner: !!c.beginner, driveRoot: root,
+        driveFound: this.cached('driveFound:' + root, 5000, () => fs.promises.stat(root).then((st) => st.isDirectory(), () => false), false),
+        oscPort: c.oscPort, oscFeedback: c.oscFeedback, oscAllow: c.oscAllow || [], port: c.port, host: os.hostname(),
+        pin: !!c.pin, logFile: this.logFile(),
+      },
       tally: this.snap ? { preview: this.inputName(this.snap.preview), program: this.inputName(this.snap.active), recording: this.snap.recording, recordingDuration: this.snap.recordingDuration, streaming: this.snap.streaming } : null,
       inputs: this.inputs().map((i) => ({ key: i.key, number: i.number, title: i.title, type: i.type })),
       layout: this.show.layout || {}, sport: this.show.sport || '',

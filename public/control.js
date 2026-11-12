@@ -362,7 +362,7 @@
 
   // keyboard shortcuts (not while typing)
   document.addEventListener('keydown', (e) => {
-    if (e.target.matches('input, select, textarea') || e.ctrlKey || e.metaKey || e.altKey) return;
+    if (e.repeat || e.target.matches('input, select, textarea') || e.ctrlKey || e.metaKey || e.altKey) return; // holding a key must not repeat TAKE
     const g = S && (S.graphics.items.find((x) => x.id === ui.gfx) || S.graphics.items[0]);
     const map = { ' ': ['music.toggle'], f: ['music.fadeout'], n: ['music.next'], t: g ? ['gfx.take', { id: g.id }] : null, o: g ? ['gfx.out', { id: g.id }] : null, c: ['video.next'], p: ['video.playpause'] };
     const a = map[e.key.toLowerCase()];

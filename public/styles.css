@@ -15,7 +15,7 @@ button { cursor: pointer; border-radius: 8px; border: 1px solid var(--line2); ba
 button:hover { filter: brightness(1.15); }
 button:active { transform: translateY(1px); }
 button:disabled { opacity: .45; cursor: default; }
-select, input[type=text], input[type=number], input:not([type]) { background: var(--input); border: 1px solid var(--line2); border-radius: 8px; padding: 9px 10px; color: var(--text); min-width: 0; }
+select, input[type=text], input[type=number], input[type=password], input:not([type]) { background: var(--input); border: 1px solid var(--line2); border-radius: 8px; padding: 9px 10px; color: var(--text); min-width: 0; }
 a { color: var(--blue); }
 .mono { font-family: var(--mono); }
 .muted { color: var(--muted); }

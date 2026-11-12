@@ -22,8 +22,8 @@ module.exports = (engine) => {
   const inp = () => engine.input('music');
   const isSaved = (name) => !!(cfg().playlists || {})[name];
 
-  function playlists() {
-    const folders = engine.media.subfolders(musicRoot());
+  /** folder playlists are cached and refreshed in the background (Drive can be slow); rescan() reads them fresh */
+  function playlists(folders = engine.cached('musicFolders:' + musicRoot(), 10000, () => engine.media.subfoldersAsync(musicRoot()), [])) {
     const saved = Object.keys(cfg().playlists || {});
     return [...folders.map((n) => ({ name: n, kind: 'folder' })), ...saved.map((n) => ({ name: n, kind: 'saved' }))];
   }
@@ -31,7 +31,9 @@ module.exports = (engine) => {
     if (scanning) return; scanning = true;
     try {
       let name = cfg().folder;
-      const pls = playlists();
+      const fresh = await engine.media.subfoldersAsync(musicRoot());
+      engine.setCached('musicFolders:' + musicRoot(), fresh);
+      const pls = playlists(fresh);
       if (!name || !pls.some((p) => p.name === name)) name = cfg().folder = pls.length ? pls[0].name : '';
       if (isSaved(name)) {
         const paths = cfg().playlists[name];

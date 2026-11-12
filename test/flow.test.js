@@ -121,7 +121,7 @@ test('ads: fill, GO countdown, cued to Preview, plays on Program, timers, back t
   assert.ok(a.breaks.find((b) => b.id === 'q1').played, 'marked played');
   assert.equal(mock.state().preview, inputBy('Cam 1 · Game').number, 'game camera to Preview');
   assert.ok(engine.state().ads.played.length >= 2, 'played log');
-  assert.ok(fs.readdirSync(path.join(drive, 'Exports')).some((f) => f.startsWith('ads-played-')), 'log file on the Drive');
+  assert.ok(await until(() => fs.existsSync(path.join(drive, 'Exports')) && fs.readdirSync(path.join(drive, 'Exports')).some((f) => f.startsWith('ads-played-'))), 'log file on the Drive');
 });
 
 test('ads: cancel countdown, add and remove break playlists', async () => {
@@ -135,7 +135,7 @@ test('ads: cancel countdown, add and remove break playlists', async () => {
 });
 
 test('videos: cue to Preview, queue, never replaces an on-air clip', { skip: !hasFfmpeg }, async () => {
-  assert.ok(await until(() => engine.state().videos.clips.length === 3));
+  assert.ok(await until(() => engine.state().videos.clips.length === 3, 10000));
   const [c1, c2] = engine.state().videos.clips;
   await engine.run('video.cue', { path: c1.path });
   const v = inputBy('VIDEOS');
