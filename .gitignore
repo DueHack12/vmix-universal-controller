@@ -2,4 +2,6 @@ data/
 demo-data/
 demo-drive/
 node_modules/
+dist/
 *.tmp
+*.uploading

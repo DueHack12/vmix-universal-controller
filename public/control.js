@@ -1,4 +1,4 @@
-/* Broadcast Console: control page (vertical 1080x1920 or horizontal 1920x1080). */
+/* vMix Universal Controller: control page (vertical 1080x1920 or horizontal 1920x1080). */
 'use strict';
 (() => {
   const { esc, attr, mmss, hms, meterPct, cmd, patch } = BC;
@@ -57,7 +57,7 @@
     const conn = S.vmix.connected;
     const rec = t.recording ? hold('● REC ' + hms(t.recordingDuration), 'rec.stop', {}, 'b-red b-sm') : btn('○ REC', 'rec.start', {}, 'b-sm');
     patch(document.getElementById('top'), `
-      <div class="logo">BC</div>
+      <div class="logo">UC</div>
       <div class="grow ellipsis" style="font-weight:700">${esc(S.show.name)}</div>
       <span class="pill"><span class="dot" style="background:${conn ? '#3FB950' : '#FF6B6B'}"></span>vMix ${conn ? esc(S.vmix.version || '') : 'offline'}</span>
       <a class="pill" href="/master" style="text-decoration:none">⚙ Master</a><button class="pill" data-ui="resetView" title="Back to the show's default open/closed sections">Reset view</button>

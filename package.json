@@ -1,14 +1,18 @@
 {
-  "name": "broadcast-console",
-  "version": "0.1.0",
-  "description": "One-operator console for vMix sports broadcasts: graphics, videos, ads, music, mixer, stream health. Companion/Stream Deck over OSC.",
+  "name": "vmix-universal-controller",
+  "version": "0.1.0-beta.1",
+  "description": "vMix Universal Controller (vMixUC): one-operator console for vMix sports broadcasts. Graphics, videos, ads, music, mixer, stream health. Companion/Stream Deck over OSC.",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
     "demo": "node scripts/demo.js",
-    "test": "node --test \"test/*.test.js\""
+    "test": "node --test test/unit.test.js test/flow.test.js test/server.test.js"
   },
-  "engines": { "node": ">=20" },
+  "engines": { "node": ">=22" },
+  "repository": { "type": "git", "url": "git+https://github.com/DueHack12/vmix-universal-controller.git" },
+  "bugs": { "url": "https://github.com/DueHack12/vmix-universal-controller/issues" },
+  "homepage": "https://github.com/DueHack12/vmix-universal-controller#readme",
+  "keywords": ["vmix", "broadcast", "companion", "stream-deck", "osc", "sports"],
   "private": true,
-  "license": "UNLICENSED"
+  "license": "MIT"
 }

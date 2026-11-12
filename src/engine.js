@@ -165,7 +165,7 @@ class Engine {
     return { ok: true };
   }
 
-  /** Create the Broadcast Console folder tree on the Drive (mkdir only). */
+  /** Create the vMix Universal Controller folder tree on the Drive (mkdir only). */
   makeFolders() {
     const root = this.store.config.driveRoot;
     const tree = ['Videos\\Highlights', 'Videos\\Pregame', 'Videos\\Packages', 'Music\\Bumps', 'Music\\Highlights', 'Music\\Pregame', 'Music\\Timeouts', 'Music\\Walk-out',

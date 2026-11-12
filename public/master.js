@@ -1,4 +1,4 @@
-/* Broadcast Console: Master (settings & management). */
+/* vMix Universal Controller: Master (settings & management). */
 'use strict';
 (() => {
   const { esc, attr, mmss, cmd, patch } = BC;
@@ -33,7 +33,7 @@
       + panel('2 · Assign jobs', `<div class="muted small">Matched automatically. Easiest fix: <b>◎ Pick in vMix</b>, then click the input in vMix so it goes to <b style="color:#3FB950">Preview</b>. Links use vMix's permanent input ID, so renaming inputs later is fine.</div>
         <table class="t"><thead><tr><th>Job</th><th>vMix input</th><th>Status</th><th></th></tr></thead><tbody>${jobs}</tbody></table><div class="row">${btn('⟳ Auto-match again', 'link.auto', {})}</div>`)
       + panel('3 · Drive folders', `<div class="muted small">Read and copy only: nothing on the Drive is ever moved, renamed or deleted.</div>
-        <div class="row"><input id="drive" class="grow" value="${esc(S.config.driveRoot)}"><button data-act="drive">Save</button>${btn('Create missing folders', 'drive.makeFolders', {}, '', 'data-confirm="Create any missing Broadcast Console folders? Nothing existing is touched."')}</div>
+        <div class="row"><input id="drive" class="grow" value="${esc(S.config.driveRoot)}"><button data-act="drive">Save</button>${btn('Create missing folders', 'drive.makeFolders', {}, '', 'data-confirm="Create any missing vMix Universal Controller folders? Nothing existing is touched."')}</div>
         <div class="small">${S.config.driveFound ? '<span class="ok">✓ Folder found</span>' : '<span class="bad">Folder not found: check Google Drive for desktop, or press Create missing folders.</span>'}</div>
         <div class="row wrap"><span class="small muted">Record drive (space left)</span><input id="recdrive" style="width:120px" placeholder="D:\\" value="${esc(S.health.disk ? S.health.disk.drive : '')}"><button class="b-sm" data-act="recdrive">Save</button></div>`)
       + panel('4 · Your other tools', `<div class="row wrap"><span class="small muted" style="width:160px">OpenStatsEngine</span><input id="ose" class="grow" placeholder="http://192.168.50.21:8080" value="${esc(S.ose.url)}"><button data-act="ose">Save</button>${btn('⟳', 'ose.refresh', {}, 'b-sm')}
@@ -117,7 +117,7 @@
     const lib = Object.entries(byFolder).map(([f, L]) => `<details><summary class="small"><b>${esc(f)}</b> · ${L.length} ads${L.some((x) => x.estimated) ? ' · <span class="warn">' + L.filter((x) => x.estimated).length + ' estimated</span>' : ''}</summary><div class="small muted">${L.map((x) => esc(x.name) + ' · <span class="mono" style="color:' + (x.estimated ? 'var(--amber)' : 'inherit') + '">' + (x.estimated ? '~' : '') + (x.seconds ? mmss(x.seconds) : '?') + '</span>').join('<br>')}</div></details>`).join('');
     return panel('Break playlists', `<table class="t"><thead><tr><th>Name</th><th>Length (s)</th><th>Filled</th><th></th><th></th></tr></thead><tbody>${breaks}</tbody></table>
         <div class="row"><input id="nbName" placeholder="New break name (e.g. Q2 break)"><input id="nbSecs" type="number" placeholder="seconds" style="width:110px"><button class="b-dash" data-act="newBreak">+ New break playlist</button>${btn('New game (reset played)', 'ads.newGame', {}, '', 'data-confirm="Start a new game? Every break is marked not played and sponsor rules reset."')}</div>`, 'names per sport: halves, quarters, periods')
-      + `<div class="grid2">` + panel('Ad library', `<div class="row"><input id="adsBase" class="grow" placeholder="blank = Broadcast Console\\Ads (or your ADS 25-26 folder)" value="${esc(A.basePathSetting)}"><button data-act="adsBase">Save</button>${btn('↺ Rescan', 'ads.rescan', {}, 'b-sm')}</div>
+      + `<div class="grid2">` + panel('Ad library', `<div class="row"><input id="adsBase" class="grow" placeholder="blank = vMix Universal Controller\\Ads (or your ADS 25-26 folder)" value="${esc(A.basePathSetting)}"><button data-act="adsBase">Save</button>${btn('↺ Rescan', 'ads.rescan', {}, 'b-sm')}</div>
           <div class="small">${A.status.found ? `<span class="ok">✓ ${A.library.length} ads in ${esc(A.status.basePath)}</span>` : `<span class="bad">Not found: ${esc(A.status.basePath)}</span>`}${A.status.missing.length ? ' · <span class="warn">missing: ' + esc(A.status.missing.join(', ')) + '</span>' : ''}</div>${lib}`)
       + panel('Folders & sponsor rules', `<div class="small muted">Bucket folders: their nominal length is used for the fill (like your Ad Manager). Real lengths are shown everywhere else.</div><div class="col" id="buckets">${bucketRows}</div><div class="row"><button class="b-sm b-dash" data-act="addBucket">+ Bucket folder</button></div>
           <div class="row"><span class="small muted">Loose folder</span><input id="loose" value="${esc(A.looseFolder)}"></div>
@@ -135,7 +135,7 @@
         <span class="small muted">When a song stops</span>${select('music.after', {}, 'value', [['next', 'Cue next track'], ['restart', 'Reset to start']], M.after)}
         <span class="small muted">Mode</span>${select('music.mode', {}, 'value', [['single', 'Single song'], ['playlist', 'Playlist · back-to-back']], M.mode)}
         <label class="small"><input type="checkbox" ${M.duck ? 'checked' : ''} data-cmd="music.duck" data-key="value"> duck music under videos</label></div>`)
-      + panel('Playlists', `<div class="small muted">Folder playlists = sub-folders of <span class="mono">Broadcast Console\\Music</span> (add a folder on the Drive, then ⟳). Saved playlists are made from the queue on the control page (“Save as playlist…”), e.g. a replay roll.</div>
+      + panel('Playlists', `<div class="small muted">Folder playlists = sub-folders of <span class="mono">vMix Universal Controller\\Music</span> (add a folder on the Drive, then ⟳). Saved playlists are made from the queue on the control page (“Save as playlist…”), e.g. a replay roll.</div>
         <div class="col">${M.playlists.map((p) => `<div class="row card"><b class="grow">${esc(p.name)}</b><span class="tiny muted">${p.kind === 'saved' ? 'saved playlist' : 'Drive folder'}</span>${p.kind === 'saved' ? btn('Delete', 'music.deletePlaylist', { name: p.name }, 'b-sm', `data-confirm="Delete the saved playlist ${esc(p.name)}? (Songs stay on the Drive.)"`) : ''}</div>`).join('') || '<span class="muted small">No playlists yet.</span>'}</div><div class="row">${btn('⟳ Rescan', 'music.rescan', {})}</div>`);
   }
 

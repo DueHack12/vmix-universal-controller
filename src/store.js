@@ -6,7 +6,7 @@
 const fs = require('fs');
 const path = require('path');
 
-const DEFAULT_DRIVE = 'G:\\Shared drives\\Prep Sports Broadcasting\\Broadcast Console';
+const DEFAULT_DRIVE = 'G:\\Shared drives\\Prep Sports Broadcasting\\vMix Universal Controller';
 
 function defaultConfig() {
   return {
