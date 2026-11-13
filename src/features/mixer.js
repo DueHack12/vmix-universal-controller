@@ -6,6 +6,8 @@
  * live buses (default: Master), with Solo on.
  */
 const db = (amp) => (amp > 0 ? 20 * Math.log10(amp) : -Infinity);
+/** fader position 0-100 -> dB, the way vMix labels its faders (50 = about -24 dB, 100 = 0 dB) */
+const faderDb = (pos) => (pos > 0 ? Math.round(80 * Math.log10(pos / 100) * 10) / 10 : -Infinity);
 
 module.exports = (engine) => {
   const live = () => engine.show.liveBuses || ['M'];
@@ -40,8 +42,8 @@ module.exports = (engine) => {
     return muted && i.solo ? 'mutelisten' : muted ? 'mute' : i.solo ? 'listen' : 'live';
   }
 
+  /* callers refresh vMix once before deciding; these don't read it again (each read of vMix costs time) */
   async function setMute(c, want) {
-    await engine.refresh();
     if (c.ref === 'master') return engine.fn(want ? 'MasterAudioOff' : 'MasterAudioOn');
     const i = engine.inputByKey(c.ref); if (!i) return { ok: false, error: 'Input missing' };
     const m = modeOf(i); const isMuted = m === 'mute' || m === 'mutelisten';
@@ -56,7 +58,6 @@ module.exports = (engine) => {
     return { ok: true };
   }
   async function setListen(c, want) {
-    await engine.refresh();
     if (c.ref === 'master') return { ok: false, error: 'Master has no listen' };
     const i = engine.inputByKey(c.ref); if (!i) return { ok: false, error: 'Input missing' };
     if (want === i.solo) return { ok: true };
@@ -90,13 +91,41 @@ module.exports = (engine) => {
     const i = engine.inputByKey(c.ref);
     return setListen(c, boolArg(value, !!(i && i.solo)));
   });
+  /** fader position of a channel as vMix has it (converted from vMix's reporting scale) */
+  function reportedLevel(c) {
+    if (c.ref === 'master') { const m = engine.snap && engine.snap.audio.master; return m ? engine.faderOf(m.volume) : 0; }
+    const i = engine.inputByKey(c.ref); return i ? engine.faderOf(i.volume) : 0;
+  }
+  /*
+   * Fader moves arrive many times a second (dragging, Stream Deck dials). Only one SetVolume per
+   * channel is sent at a time; while it is on its way, newer values replace each other and only
+   * the latest is sent next. For a short while the wanted value is shown instead of what vMix
+   * reported, so faders don't jump back while vMix catches up.
+   */
+  const levels = {}; // channel id -> { busy, next, want, at }
+  const HOLD_MS = 1500;
+  function wanted(c) { const L = levels[c.id]; return L && Date.now() - L.at < HOLD_MS ? L.want : null; }
+  async function sendLevel(c, v) {
+    const L = levels[c.id] || (levels[c.id] = { busy: false, next: null });
+    L.next = v; L.want = v; L.at = Date.now();
+    if (L.busy) return { ok: true, queued: true };
+    L.busy = true;
+    let r = { ok: true };
+    try {
+      while (L.next !== null) {
+        const x = L.next; L.next = null;
+        r = c.ref === 'master' ? await engine.fn('SetMasterVolume', { Value: x }) : await engine.fn('SetVolume', { Input: c.ref, Value: x });
+        L.at = Date.now();
+      }
+    } finally { L.busy = false; }
+    return r;
+  }
   engine.cmd('mix.level', async ({ id, value, step }) => {
-    if (step !== undefined) await engine.refresh();
     const c = findCh(id); if (!c) return { ok: false, error: 'No such channel' };
-    const i = c.ref === 'master' ? null : engine.inputByKey(c.ref);
-    const cur = c.ref === 'master' ? (engine.snap && engine.snap.audio.master ? engine.snap.audio.master.volume : 100) : (i ? i.volume : 0);
-    const v = Math.max(0, Math.min(100, step !== undefined ? cur + Number(step) : Number(value)));
-    return c.ref === 'master' ? engine.fn('SetMasterVolume', { Value: v }) : engine.fn('SetVolume', { Input: c.ref, Value: v });
+    const cur = wanted(c) ?? reportedLevel(c);
+    const v = Math.round(Math.max(0, Math.min(100, step !== undefined ? cur + Number(step) : Number(value))));
+    if (!isFinite(v)) return { ok: false, error: 'Level should be 0-100' };
+    return sendLevel(c, v);
   });
   engine.cmd('mix.add', ({ ref, name }) => {
     if (!ref) return { ok: false, error: 'Pick an input' };
@@ -137,14 +166,16 @@ module.exports = (engine) => {
       const out = channels().map((c) => {
         if (c.ref === 'master') {
           const m = engine.snap && engine.snap.audio.master;
-          return { id: c.id, name: c.name, ref: c.ref, master: true, mode: m && m.muted ? 'mute' : 'live', volume: m ? m.volume : 0, dbL: m ? db(m.meterF1) : -Infinity, dbR: m ? db(m.meterF2) : -Infinity, missing: !m };
+          const vol = Math.round(wanted(c) ?? reportedLevel(c));
+          return { id: c.id, name: c.name, ref: c.ref, master: true, mode: m && m.muted ? 'mute' : 'live', volume: vol, faderDb: faderDb(vol), dbL: m ? db(m.meterF1) : -Infinity, dbR: m ? db(m.meterF2) : -Infinity, missing: !m };
         }
         const i = engine.inputByKey(c.ref);
         if (!i) return { id: c.id, name: c.name, ref: c.ref, missing: true, mode: 'live', volume: 0, dbL: -Infinity, dbR: -Infinity };
         const bm = c.mic && engine.features.bridge ? engine.features.bridge.mic(c.mic) : null;
-        return { id: c.id, name: c.name, ref: c.ref, source: i.title, mode: modeOf(i), volume: i.volume, dbL: db(i.meterF1), dbR: db(i.meterF2), mic: c.mic || '', cough: bm ? !!bm.cough : false };
+        const vol = Math.round(wanted(c) ?? reportedLevel(c));
+        return { id: c.id, name: c.name, ref: c.ref, source: i.title, mode: modeOf(i), volume: vol, faderDb: faderDb(vol), dbL: db(i.meterF1), dbR: db(i.meterF2), mic: c.mic || '', cough: bm ? !!bm.cough : false };
       });
-      for (const c of out) { c.dbL = isFinite(c.dbL) ? Math.round(c.dbL * 10) / 10 : -99; c.dbR = isFinite(c.dbR) ? Math.round(c.dbR * 10) / 10 : -99; }
+      for (const c of out) { c.faderDb = isFinite(c.faderDb) ? c.faderDb : null; c.dbL = isFinite(c.dbL) ? Math.round(c.dbL * 10) / 10 : -99; c.dbR = isFinite(c.dbR) ? Math.round(c.dbR * 10) / 10 : -99; }
       return { liveBuses: live(), selected: (channels()[selected] || {}).name || '', channels: out, available: engine.inputs().filter((i) => !channels().some((c) => c.ref === i.key)).map((i) => ({ key: i.key, title: i.title, type: i.type })) };
     },
   };

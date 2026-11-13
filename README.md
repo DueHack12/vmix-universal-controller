@@ -10,7 +10,11 @@ One screen for the graphics / music / ads operator on a vMix sports broadcast, w
 
 **Game-day core**
 - **Graphics:** pick a GT title, edit its text, TAKE/OUT. A red tally read back from vMix itself, with on-air timers and an "it will replace…" warning.
-- **Videos:** folders on the Drive, thumbnails, a queue, CUE to Preview for the director, play/pause/restart, time left, drag-and-drop upload. It never swaps a clip that's on air.
+- **Videos:** folders on the Drive, thumbnails, CUE to Preview for the director, play/pause/restart, time left, drag-and-drop upload.
+  - The vMix VIDEOS list holds every clip of the chosen folder; the controller selects the clip it needs.
+  - A playlist (queue) can mix clips from several folders. With auto-next on, when a clip ends the next one plays on air (or is cued to Preview when the video isn't on air).
+  - A manual CUE never swaps a clip that's on air: it waits until the director cuts away.
+  - In vMix, turn **Auto Next off** on the VIDEOS list (right-click › Edit Items). The controller warns you if it's on.
 - **Ads:** your Ad Manager built in.
   - Bucket, Unsorted and sponsor folders, with real lengths.
   - Break playlists (Pregame, Q1, Halftime, Q3, Postgame…) with random fill and sponsor rules.
@@ -18,9 +22,12 @@ One screen for the graphics / music / ads operator on a vMix sports broadcast, w
   - THIS AD and BREAK LEFT timers, SKIP, and BACK TO GAME (music back, game camera to Preview).
   - A played-ads log on the Drive.
 - **Music:** playlists = Drive folders, a green bar while playing, FADE OUT, KILL, 25/50/75/100%, fade time.
+  - The vMix MUSIC list holds every song of the chosen playlist; the controller selects the song to play. In vMix, turn **Auto Next off** on the MUSIC list.
   - When a song stops: reset to start, or cue the next track.
   - A queue, back-to-back playlist mode (replay rolls), saved playlists, auto-duck under videos.
-- **Mixer:** named channels with meters and faders. MUTE (the channel dims), LISTEN (headphones). Both together = listen, not live. Add or remove sliders.
+- **Mixer:** named channels with meters and faders. MUTE (the channel dims), LISTEN (headphones). Both together = listen, not live. Add, remove and reorder sliders (◀ ▶ when expanded).
+  - Faders match vMix's own faders, with the same dB. vMix reports volume on different scales in different versions; the controller detects which (or set it in Master › Mixer › Fader scale).
+  - Expanded, the mixer shows big vertical faders.
 - **Stream health:** vMix link, stream, recording time, record-drive hours left, CPU, program audio with a silence alarm, linked inputs.
 - **Companion / Stream Deck:** OSC on UDP 9600 or HTTP. Feedback (on-air, time left, song…) is sent back to Companion.
 
@@ -51,8 +58,7 @@ One screen for the graphics / music / ads operator on a vMix sports broadcast, w
   - Open it on the school Wi-Fi at `http://<vMix PC>:8790/remote`, then use **Add to Home Screen**.
 - **YouTube check:** confirms from YouTube itself that you're live and shows how many are watching (plus the peak). The Stream health section turns red if vMix is streaming but YouTube isn't live.
   - Setup: a free API key and your channel ID go in Master › Setup.
-- **Monitor pictures:** Preview, Program and "Check a graphic" show real images from vMix snapshots, about once a second.
-  - Turn it on in Master › Setup. It only works when the controller runs on the vMix PC.
+- **Graphic mock-up:** the top of the control page shows a mock-up of the selected graphic with its current text, and whether it's on air.
 - **Stream Deck + dials:** send relative values from Companion's rotary actions:
   - `/console/music/level "+5"`
   - `/console/mix/select "+1"` and `/console/mix/selected/level "-2"`

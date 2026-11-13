@@ -3,6 +3,28 @@
 All notable changes are listed here. Versions follow [Semantic Versioning](https://semver.org).
 The release workflow uses the section for the tag's version as the release notes.
 
+## [0.1.0-beta.2] - 2026-11-13
+
+Fixes from the first test on a real vMix.
+
+### Changed
+- **Lists stay full.** The vMix MUSIC list holds the whole playlist and the VIDEOS list the whole folder (plus clips queued from other folders). The controller selects what it needs instead of emptying the list and loading one file. Turn **Auto Next off** on MUSIC and VIDEOS in vMix (ADS stays on); the controller warns you if vMix moves on by itself.
+- **Video playlists:** queue clips from several folders. With auto-next on, the next clip plays when one ends on air (or is cued to Preview off air). New Clear button, folder names and total time in the playlist.
+- **Music Playlist mode** starts the next queued song when one ends.
+- **Mixer, expanded:** big vertical faders, and ◀ ▶ to reorder channels.
+- **Top of the control page:** the Preview/Program pictures are gone (they cost vMix time every second). Only the graphic mock-up is left; it follows the graphic picked in Graphics.
+
+### Fixed
+- **Mixer faders didn't match vMix** ("bottom isn't silent", different heights, faders jumping back after a move). vMix accepts volume as the fader position but some versions report it as amplitude (halfway reads 6.25). The controller now detects the scale, converts it, and shows dB like vMix. Override: Master › Mixer › Fader scale.
+- **Lag:**
+  - The mixer is no longer rebuilt several times a second: meters and faders update in place.
+  - Faders send while you drag; fast moves are merged so vMix only gets the latest value.
+  - Mute/listen read vMix once instead of twice.
+  - Buttons in sections with a running timer no longer lose a tap when the section redraws mid-press.
+
+### Removed
+- vMix snapshot pictures ("Monitor pictures" setting).
+
 ## [0.1.0-beta.1] - 2026-11-12
 
 First public beta. **Tested against a simulated vMix only.** Run the quick test in `SETUP.txt` before using it for a game.
@@ -37,4 +59,5 @@ First public beta. **Tested against a simulated vMix only.** Run the quick test 
 - Cancelled uploads left `.uploading` files in the Drive folder.
 - Holding a keyboard shortcut repeated TAKE.
 
+[0.1.0-beta.2]: https://github.com/DueHack12/vmix-universal-controller/releases/tag/v0.1.0-beta.2
 [0.1.0-beta.1]: https://github.com/DueHack12/vmix-universal-controller/releases/tag/v0.1.0-beta.1

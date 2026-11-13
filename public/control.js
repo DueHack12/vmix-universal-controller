@@ -7,7 +7,7 @@
   const LS = 'bc.ui.' + layout;
   const ui = Object.assign({ open: {}, gfx: '', mon: 'pgm', chk: '' }, (() => { try { return JSON.parse(localStorage.getItem(LS)) || {}; } catch { return {}; } })());
   const saveUi = () => { try { localStorage.setItem(LS, JSON.stringify(ui)); } catch { /* private mode */ } };
-  let S = null; let lastCheck = '';
+  let S = null;
 
   /* ---------- layout ---------- */
   const SECS = { stream: 'Stream health', gfx: 'Graphics', video: 'Videos', ads: 'Ads', music: 'Music', mix: 'Mixer' };
@@ -74,31 +74,19 @@
     patch(document.getElementById('banners'), out.join(''));
   }
 
-  /* ---------- monitors ---------- */
+  /* ---------- graphic mock-up (no video pictures: those cost vMix time and weren't needed) ---------- */
   function renderMon() {
-    const t = S.tally || {};
     const items = S.graphics.items;
-    const chk = items.find((g) => g.id === (ui.chk || ui.gfx)) || items[0];
-    const P = S.previews; const usePv = P && P.enabled && P.local;
-    const img = (n) => (usePv && P.stamp[n] ? `background-image:url('/api/snap/${n}?t=${P.stamp[n]}');background-size:cover;background-position:center;` : '');
-    const cap = (txt) => (usePv ? `<span style="position:absolute;left:8px;bottom:6px;font-size:12px;font-weight:700;background:#000a;padding:2px 6px;border-radius:4px">${esc(txt)}</span>` : `<div class="big">${esc(txt)}</div>`);
-    if (ui.mon === 'chk' && chk && usePv && P.check !== chk.key && lastCheck !== chk.key) { lastCheck = chk.key; cmd('previews.check', { key: chk.key }); }
-    let right;
-    if (ui.mon === 'chk' && chk && usePv && P.stamp.chk && P.check === chk.key) {
-      right = `<div class="mon chk" style="${img('chk')}">${cap('CHECK · ' + chk.name + ' (not live)')}</div>`;
-    } else if (ui.mon === 'chk' && chk) {
-      const tf = chk.fields.filter((f) => f.kind === 'text');
-      right = `<div class="mon chk"><div class="l3"><div class="a">${esc((tf[0] || {}).value || chk.name)}</div>${tf[1] ? `<div class="b">${esc(tf[1].value)}</div>` : ''}</div></div>`;
-    } else {
-      const on = items.filter((g) => g.onAir).map((g) => esc(g.name)).join(' · ');
-      right = usePv ? `<div class="mon pgm" style="${img('pgm')}">${cap((t.program || '—') + (on ? ' + ' + on : ''))}</div>` : `<div class="mon pgm"><div><div class="big">${esc(t.program || '—')}</div>${on ? `<div class="small" style="margin-top:6px;color:var(--red-text)">+ ${on}</div>` : ''}</div></div>`;
-    }
-    patch(document.getElementById('mon'), `<div class="monitors">
-      <div class="col"><div class="row" style="height:30px"><span class="mon-label" style="color:#3FB950">PREVIEW</span><span class="muted small">from the hardware panel</span></div>
-        <div class="mon pvw" style="${img('pvw')}">${cap(t.preview || '—')}</div></div>
-      <div class="col"><div class="row" style="height:30px">${ui_('Program', 'mon:pgm', 'b-sm ' + (ui.mon !== 'chk' ? 'b-sel' : ''))}${ui_('Check a graphic', 'mon:chk', 'b-sm ' + (ui.mon === 'chk' ? 'b-sel' : ''))}
-        ${ui.mon === 'chk' ? `<select class="grow" data-ui-select="chk">${items.map((g) => `<option value="${esc(g.id)}" ${chk && g.id === chk.id ? 'selected' : ''}>${esc(g.name)}</option>`).join('')}</select><span class="muted tiny">not live</span>` : ''}</div>
-        ${right}</div></div>`);
+    const g = items.find((x) => x.id === ui.gfx) || items[0]; // same graphic as the Graphics section
+    if (!g) return patch(document.getElementById('mon'), '');
+    const tf = g.fields.filter((f) => f.kind === 'text' && f.mode !== 'hidden');
+    const lines = tf.slice(0, 3).map((f, k) => (k && !f.value ? '' : `<div class="${k ? 'b' : 'a'}">${esc(f.value || g.name)}</div>`)).join('') || `<div class="a">${esc(g.name)}</div>`;
+    const on = items.filter((x) => x.onAir).map((x) => esc(x.name)).join(' · ');
+    patch(document.getElementById('mon'), `<div class="monitors one">
+      <div class="row" style="gap:8px"><span class="mon-label">GRAPHIC</span><select class="grow" data-ui-select="gfx" aria-label="Graphic to show">${items.map((x) => `<option value="${esc(x.id)}" ${x.id === g.id ? 'selected' : ''}>${esc(x.name)}${x.onAir ? ' (ON AIR)' : ''}</option>`).join('')}</select>
+        <span class="tiny" style="font-weight:800;color:${g.onAir ? 'var(--red-text)' : 'var(--muted)'}">${g.onAir ? '● ON AIR' : 'not live'}</span></div>
+      <div class="mon chk mock"><div class="l3">${lines}</div></div>
+      ${on ? `<div class="tiny" style="color:var(--red-text)">On air: ${on}</div>` : ''}</div>`);
   }
 
   /* ---------- stream health ---------- */
@@ -189,14 +177,17 @@
         <div class="clip-name ellipsis" title="${esc(c.name)}">${esc(c.name)}</div>
         <div class="row" style="padding:0 6px 6px;gap:4px">${btn('+ Queue', 'video.queue', { path: c.path }, 'b-sm grow')}${btn('Cue', 'video.cue', { path: c.path }, 'b-sm b-green grow')}</div></div>`;
     }).join('');
-    const q = v.queue.map((x, i) => `<div class="qrow" style="background:${i === 0 ? 'var(--blue-soft)' : 'transparent'}"><span class="mono muted">${i + 1}</span><span class="ellipsis">${esc(x.name)}</span><span class="mono muted">${x.seconds ? mmss(x.seconds) : ''}</span>${btn('✕', 'video.unqueue', { index: i }, 'b-sm', 'aria-label="Remove from queue"')}</div>`).join('') || '<span class="small muted">Queue is empty. Use “+ Queue” on a clip.</span>';
+    const q = v.queue.map((x, i) => `<div class="qrow" style="background:${i === 0 ? 'var(--blue-soft)' : 'transparent'}"><span class="mono muted">${i + 1}</span><span class="ellipsis">${esc(x.name)}${x.folder !== v.folder ? ` <span class="tiny muted">· ${esc(x.folder)}</span>` : ''}</span><span class="mono muted">${x.seconds ? mmss(x.seconds) : ''}</span>${btn('✕', 'video.unqueue', { index: i }, 'b-sm', 'aria-label="Remove from queue"')}</div>`).join('') || '<span class="small muted">Queue is empty. Use “+ Queue” on a clip.</span>';
     return head('video', v.now ? (v.running ? 'Playing: ' : 'Cued: ') + v.now + ' · ' + mmss(v.remaining) + ' left · ' + v.queue.length + ' queued' : v.queue.length + ' queued', v.running ? '#FF9C9C' : '') + `<div class="sec-body">
       <div class="row"><span class="small muted">Folder</span><select class="grow" data-cmd="video.folder" data-key="name">${v.folders.map((f) => `<option ${f === v.folder ? 'selected' : ''}>${esc(f)}</option>`).join('') || '<option>No folders in Videos</option>'}</select>
         <label class="pill" style="cursor:pointer">⇪ Upload<input type="file" accept="video/*" multiple class="hide" data-upload></label>${btn('⟳', 'video.rescan', {}, 'b-sm', 'title="Rescan folder"')}</div>
+      ${v.autoNextWarn ? '<div class="banner warn note small" role="alert">⚠ vMix moved to the next clip by itself. In vMix, right-click the VIDEOS input › Edit Items and turn OFF <b>Auto Next</b>.</div>' : ''}
+      ${v.listPending ? '<div class="small muted">The vMix VIDEOS list switches to this folder once the video is off air.</div>' : ''}
       <div class="drop" data-drop>Drop videos here to copy them into <b>Videos › ${esc(v.folder || '?')}</b> on the Drive</div>
       <div class="grid4">${clips || '<span class="small muted">No videos in this folder.</span>'}</div>
-      <div class="card col" style="gap:6px"><div class="row small"><b>QUEUE</b><span class="muted grow">${v.autoCueNext ? 'auto-cues the next clip to Preview when one ends (only when the video is not on air)' : 'auto-cue is off'}</span>
-        <label class="small"><input type="checkbox" ${v.autoCueNext ? 'checked' : ''} data-cmd="video.autoCue" data-key="value"> auto-cue</label></div>${q}
+      <div class="card col" style="gap:6px"><div class="row small"><b>PLAYLIST (${v.queue.length}${v.queueSeconds ? ' · ' + mmss(v.queueSeconds) : ''})</b><span class="muted grow">${v.autoCueNext ? 'when a clip ends, the next one plays (on air) or is cued to Preview (off air)' : 'auto-next is off: use CUE NEXT'}</span>
+        <label class="small"><input type="checkbox" ${v.autoCueNext ? 'checked' : ''} data-cmd="video.autoCue" data-key="value"> auto-next</label>${v.queue.length ? btn('Clear', 'video.clearQueue', {}, 'b-sm') : ''}</div>
+        <span class="tiny muted">Queue clips from any folder: pick another folder above and press “+ Queue”.</span>${q}
         <div class="row">${controls.replace(/<button /g, '<button style="flex:1" ')}</div>
         ${v.onAir ? '<span class="tiny" style="color:var(--red-text)">Video is on air: cueing waits until the director cuts away.</span>' : ''}</div></div>`;
   }
@@ -264,12 +255,14 @@
     const chip = (label, c, args, on) => btn(label, c, args, 'b-sm ' + (on ? 'b-sel' : ''));
     return head('music', (m.playing ? '▶ PLAYING · ' : '■ STOPPED · ') + (m.now || '') + ' · ' + m.level + '%', m.playing ? '#56D364' : '') + `<div class="sec-body">
       <div class="row"><span class="small muted">Playlist</span>${pl}${btn('⟳', 'music.rescan', {}, 'b-sm', 'title="Rescan"')}</div>
+      ${m.autoNextWarn ? '<div class="banner warn note small" role="alert">⚠ vMix moved to the next song by itself. In vMix, right-click the MUSIC input › Edit Items and turn OFF <b>Auto Next</b>.</div>' : ''}
+      ${m.listPending ? '<div class="small muted">The vMix MUSIC list switches to this playlist when the current song stops (or when you play a song from it).</div>' : ''}
       <div class="music-bar ${m.playing ? 'playing' : ''} col" style="gap:6px"><div class="row small"><b class="${m.playing ? 'playing-text' : 'muted'} grow">${status}</b><span class="mono">-${mmss(m.remaining)}</span></div>
         <div style="font-weight:700;font-size:15px" class="${m.playing ? 'playing-text' : ''}">${esc(m.now || 'Nothing loaded')}</div>
         <div class="seg" style="height:5px;background:#2C3440"><span style="width:${pos}%;height:5px;background:#E6EAF0"></span></div></div>
       <div class="row wrap small muted">Mode ${chip('Single song', 'music.mode', { value: 'single' }, m.mode === 'single')}${chip('Playlist · back-to-back', 'music.mode', { value: 'playlist' }, m.mode === 'playlist')}
         <span style="margin-left:10px">When a song stops</span>${chip('Reset to start', 'music.after', { value: 'restart' }, m.after === 'restart')}${chip('Cue next track', 'music.after', { value: 'next' }, m.after === 'next')}</div>
-      <div class="card col" style="gap:6px"><div class="row small"><b>UP NEXT (${m.queue.length})</b><span class="muted grow">${m.mode === 'playlist' ? 'plays straight through, no gaps (replay rolls)' : 'one song at a time'}</span><button class="b-sm" data-ui="savePlaylist">Save as playlist…</button>${btn('Clear', 'music.clearQueue', {}, 'b-sm')}</div>${q}</div>
+      <div class="card col" style="gap:6px"><div class="row small"><b>UP NEXT (${m.queue.length})</b><span class="muted grow">${m.mode === 'playlist' ? 'when a song ends, the next one starts' : 'one song at a time'}</span><button class="b-sm" data-ui="savePlaylist">Save as playlist…</button>${btn('Clear', 'music.clearQueue', {}, 'b-sm')}</div>${q}</div>
       <div class="col" style="gap:4px;max-height:260px;overflow-y:auto">${songs}</div>
       <div class="row">${levels([25, 50, 75, 100]).replace(/<button /g, '<button style="flex:1;padding:12px" ')}</div>
       <div class="row wrap small muted">Fade ${[['Cut', 0], ['1s', 1000], ['2s', 2000], ['4s', 4000]].map(([l, ms]) => chip(l, 'music.fadeTime', { ms }, m.fadeMs === ms)).join('')}<span class="grow"></span><span>Auto-duck under videos: on${m.ducked ? ' (ducked now)' : ''}</span></div>
@@ -282,23 +275,25 @@
   function renderMix() {
     const X = S.mixer;
     const open = isOpen('mix');
-    const strips = X.channels.map((c) => {
+    // only what changes rarely goes in the HTML; meters / faders / levels are updated in place (BC.mixLive)
+    const strips = X.channels.map((c, k) => {
       const muted = c.mode === 'mute' || c.mode === 'mutelisten'; const lis = c.mode === 'listen' || c.mode === 'mutelisten';
       const mc = muted ? '#3A3F48' : '#3FB950';
+      const id = esc(c.id);
       return `<div class="strip ${c.mode}">
-        <div class="ellipsis" style="font-size:12px;font-weight:800;max-width:100%" title="${esc(c.source || c.name)}">${esc(c.name)}</div>
+        <div class="ellipsis sname" title="${esc(c.source || c.name)}">${esc(c.name)}</div>
         <div class="st" style="color:${c.missing ? '#FF6B6B' : STATE_COL[c.mode]}">${c.missing ? 'INPUT MISSING' : STATE_TXT[c.mode]}</div>
-        <div class="meters"><div class="meter"><span style="height:${meterPct(c.dbL)}%;background:${mc}"></span></div><div class="meter"><span style="height:${meterPct(c.dbR)}%;background:${mc}"></span></div>
-          <input class="vfader" type="range" min="0" max="100" value="${c.volume}" data-cmd="mix.level" data-args="${attr({ id: c.id })}" data-key="value" aria-label="${esc(c.name)} level"></div>
-        <div class="mono tiny muted">${c.volume}</div>
+        <div class="meters"><div class="meter"><span data-meter-l="${id}" style="background:${mc}"></span></div><div class="meter"><span data-meter-r="${id}" style="background:${mc}"></span></div>
+          <input class="vfader" type="range" orient="vertical" min="0" max="100" step="1" data-fader="${id}" aria-label="${esc(c.name)} level"></div>
+        <div class="mono tiny muted"><span data-vol="${id}"></span> · <span data-db="${id}"></span></div>
         <div class="mbtns">${c.master ? `<button class="${muted ? 'm-on' : ''}" data-cmd="mix.mute" data-args="${attr({ id: c.id })}" style="grid-column:span 2">MUTE</button>` : `<button class="${muted ? 'm-on' : ''}" data-cmd="mix.mute" data-args="${attr({ id: c.id })}">MUTE</button><button class="${lis ? 'l-on' : ''}" data-cmd="mix.listen" data-args="${attr({ id: c.id })}">LISTEN</button>`}</div>
         ${c.mic ? `<button class="${c.cough ? 'b-red-soft' : ''}" style="font-size:10px;padding:6px 0;width:100%" data-cmd="mix.cough" data-args="${attr({ id: c.id })}" title="NDI Audio Bridge cough (mic ${esc(c.mic)})">${c.cough ? 'COUGHED' : 'COUGH'}</button>` : ''}
-        ${open ? btn('✕', 'mix.remove', { id: c.id }, 'b-sm', `data-confirm="Remove the ${esc(c.name)} slider?" aria-label="Remove ${esc(c.name)}"`) : ''}</div>`;
+        ${open ? `<div class="row" style="gap:3px;width:100%">${btn('◀', 'mix.move', { id: c.id, to: k - 1 }, 'b-sm grow', k ? `aria-label="Move ${esc(c.name)} left"` : 'disabled')}${btn('✕', 'mix.remove', { id: c.id }, 'b-sm', `data-confirm="Remove the ${esc(c.name)} slider?" aria-label="Remove ${esc(c.name)}"`)}${btn('▶', 'mix.move', { id: c.id, to: k + 1 }, 'b-sm grow', k < X.channels.length - 1 ? `aria-label="Move ${esc(c.name)} right"` : 'disabled')}</div>` : ''}</div>`;
     }).join('');
     const legend = '<span class="tiny muted"><b style="color:#FF6B6B">MUTE</b> off the stream · <b style="color:#E3B341">LISTEN</b> in headphones · both = <b style="color:#8AB4FF">listen, not live</b></span>';
     const mutedCount = X.channels.filter((c) => c.mode === 'mute' || c.mode === 'mutelisten').length;
     if (!open) return `<div class="sec-body"><div class="bar">${barTitle('mix')}<span class="grow"></span>${legend}</div><div class="strips">${strips}</div></div>`;
-    return head('mix', X.channels.length + ' channels · ' + mutedCount + ' muted') + `<div class="sec-body">${legend}<div class="strips">${strips}</div>
+    return head('mix', X.channels.length + ' channels · ' + mutedCount + ' muted') + `<div class="sec-body">${legend}<div class="strips big">${strips}</div>
       <div class="row"><select class="grow" id="mixAdd">${X.available.map((i) => `<option value="${esc(i.key)}">${esc(i.title)} (${esc(i.type)})</option>`).join('')}<option value="master">Master bus</option></select><button class="b-dash" data-ui="mixAdd">+ Add slider</button>${btn('Reset to defaults', 'mix.reset', {}, 'b-sm', 'data-confirm="Rebuild the mixer from the linked inputs?"')}</div></div>`;
   }
 
@@ -310,6 +305,7 @@
     document.body.classList.toggle('beginner', !!S.config.beginner);
     renderTop(); renderBanners(); renderMon();
     for (const k of Object.keys(R)) { const el = document.getElementById('sec-' + k); if (el) patch(el, R[k]()); }
+    BC.mixLive(document.getElementById('sec-mix'), S.mixer.channels);
   }
   BC.onState((s) => { if (s) { S = s; render(); } });
   BC.connect(); BC.wire();
@@ -325,8 +321,7 @@
     else if (k === 'spPlayer') { const [num, ...nm] = v.split('|'); ui.sp = { ...(ui.sp || {}), num, name: nm.join('|') }; saveUi(); render(); }
     else if (k === 'spEvent') { ui.sp = { ...(ui.sp || {}), event: v }; saveUi(); render(); }
     else if (k === 'spTake') { const sp = ui.sp || {}; cmd('gfx.statpop', { id: v, side: sp.side || 'home', number: sp.num || '', name: sp.name || '', event: sp.event || '' }); }
-    else if (k === 'mon') { ui.mon = v; saveUi(); render(); }
-    else if (k === 'check') { ui.mon = 'chk'; ui.chk = v; saveUi(); render(); }
+    else if (k === 'check') { ui.gfx = v; saveUi(); render(); }
     else if (k === 'addBreak') { const name = prompt('Name for the new break playlist (e.g. Q2 break):'); if (name) { const sec = Number(prompt('Length in seconds:', '120')) || 120; cmd('ads.addBreak', { name, seconds: sec }); } }
     else if (k === 'customLen') { const sec = Number(prompt('Break length in seconds:', '150')); if (sec > 0) cmd('ads.target', { id: S.ads.selected, seconds: sec }); }
     else if (k === 'savePlaylist') { const name = prompt('Save the current song + up next as a playlist named:', 'Replay roll'); if (name) cmd('music.savePlaylist', { name }); }
@@ -336,7 +331,7 @@
     const el = e.target;
     if (el.dataset.uiSelect === 'gfx') { ui.gfx = el.value; saveUi(); el.blur(); render(); }
     if (el.dataset.uiSelect === 'chk') { ui.chk = el.value; saveUi(); el.blur(); render(); }
-    if (el.type === 'range') el.blur();
+    if (el.type === 'range' && !el.dataset.fader) el.blur();
     if (el.matches('input[data-upload]')) { upload([...el.files]); el.value = ''; }
   });
   // live typing for graphic fields: send after a short pause

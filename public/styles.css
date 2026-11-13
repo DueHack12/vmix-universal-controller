@@ -59,6 +59,7 @@ header.top { display: flex; align-items: center; gap: 8px; background: var(--pan
 .banner.count { background: var(--orange); color: #111827; }
 .banner.count .n { font-family: var(--mono); font-size: 44px; line-height: 1; }
 .banner.bad { background: var(--red-soft); border: 2px solid var(--red-line); }
+.banner.note { display: block; font-weight: 600; }
 .banner.warn { background: var(--amber-soft); border: 1px solid var(--amber); font-weight: 600; }
 
 section.sec { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; }
@@ -78,6 +79,8 @@ section.sec { background: var(--panel); border: 1px solid var(--line); border-ra
 .mon .big { font-size: 22px; font-weight: 800; }
 .mon.pvw { border: 2px solid var(--green); } .mon.pgm { border: 2px solid var(--red); } .mon.chk { border: 2px solid #3A4452; background: #1B1F26; align-items: flex-end; justify-content: flex-start; }
 .mon-label { font-size: 12px; font-weight: 800; letter-spacing: 1px; }
+.monitors.one { grid-template-columns: minmax(0, 1fr); gap: 8px; padding: 10px 12px; }
+.mon.mock { aspect-ratio: 32 / 9; max-height: 200px; }
 .l3 { display: flex; flex-direction: column; width: 70%; text-align: left; }
 .l3 .a { background: var(--red); color: #fff; font-weight: 800; padding: 6px 10px; text-transform: uppercase; }
 .l3 .b { background: #F2F4F7; color: #111827; font-weight: 600; padding: 4px 10px; font-size: 12px; text-transform: uppercase; }
@@ -127,6 +130,19 @@ section.sec { background: var(--panel); border: 1px solid var(--line); border-ra
 .mbtns { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 3px; width: 100%; }
 .mbtns button { font-size: 10px; padding: 7px 0; border: 0; border-radius: 5px; background: #3A4452; color: #fff; }
 .mbtns .m-on { background: var(--red); } .mbtns .l-on { background: var(--amber); color: #111827; }
+.strip .sname { font-size: 12px; font-weight: 800; max-width: 100%; }
+.meter > span { height: 0; transition: height .08s linear; }
+/* expanded mixer: bigger strips with tall up-and-down faders */
+.strips.big { grid-template-columns: repeat(auto-fit, minmax(132px, 1fr)); gap: 12px; }
+.strips.big .strip { padding: 12px 8px; gap: 8px; }
+.strips.big .sname { font-size: 16px; }
+.strips.big .st { font-size: 11px; }
+.strips.big .meters { height: 300px; gap: 8px; }
+.strips.big .meter, .strips.big .meter > span { width: 12px; }
+.strips.big .vfader { width: 44px; height: 300px; }
+.strips.big .mbtns { gap: 5px; }
+.strips.big .mbtns button { font-size: 14px; padding: 14px 0; border-radius: 8px; }
+.strips.big .tiny { font-size: 12px; }
 
 /* stream health */
 .tiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }

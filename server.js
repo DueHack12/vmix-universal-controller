@@ -199,13 +199,6 @@ async function handle(req, res) {
       if (!r) return send(res, 404, { ok: false, error: 'Unknown OSC path' });
       return send(res, 200, await engine.run(r[0], r[1]));
     }
-    if (p.startsWith('/api/snap/')) {
-      const name = p.slice(10).replace(/[^a-z]/g, '');
-      const f = engine.features.previews.file(name);
-      if (!fs.existsSync(f)) return send(res, 404, 'no snapshot', 'text/plain');
-      res.writeHead(200, { 'Content-Type': 'image/jpeg', 'Cache-Control': 'no-store' });
-      return fs.createReadStream(f).pipe(res);
-    }
     if (p === '/api/thumb') {
       const file = u.searchParams.get('path') || '';
       const t = engine.media.thumbPath(file);
