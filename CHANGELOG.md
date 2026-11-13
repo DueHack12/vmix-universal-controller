@@ -3,7 +3,7 @@
 All notable changes are listed here. Versions follow [Semantic Versioning](https://semver.org).
 The release workflow uses the section for the tag's version as the release notes.
 
-## [0.1.0-beta.2] - 2026-11-13
+## [0.2.0-beta] - 2026-11-13
 
 Fixes from the first test on a real vMix.
 
@@ -59,5 +59,5 @@ First public beta. **Tested against a simulated vMix only.** Run the quick test 
 - Cancelled uploads left `.uploading` files in the Drive folder.
 - Holding a keyboard shortcut repeated TAKE.
 
-[0.1.0-beta.2]: https://github.com/DueHack12/vmix-universal-controller/releases/tag/v0.1.0-beta.2
+[0.2.0-beta]: https://github.com/DueHack12/vmix-universal-controller/releases/tag/v0.2.0-beta
 [0.1.0-beta.1]: https://github.com/DueHack12/vmix-universal-controller/releases/tag/v0.1.0-beta.1
