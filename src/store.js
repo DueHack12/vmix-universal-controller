@@ -13,7 +13,8 @@ function defaultConfig() {
     port: 8790,
     oscPort: 9600,
     oscFeedback: { host: '', port: 0 },
-    vmix: { host: '127.0.0.1', port: 8088, user: '', password: '' },   // user/password only if set in vMix › Web Controller
+    // user/password only if set in vMix › Web Controller. volumeScale: 'auto' | 'fader' | 'amplitude' (see engine.volumeScale)
+    vmix: { host: '127.0.0.1', port: 8088, user: '', password: '', volumeScale: 'auto', volumeDetected: '' },
     driveRoot: DEFAULT_DRIVE,
     currentShow: 'Default',
     ffmpegPath: '',

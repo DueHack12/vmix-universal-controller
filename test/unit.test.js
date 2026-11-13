@@ -160,3 +160,43 @@ test('state patches rebuild the same state', () => {
   assert.deepEqual(sd.apply(s1, d), s2);
   assert.equal(sd.diff(sd.flatten(s2), sd.flatten(s2), s2), null, 'no change, no message');
 });
+
+/* ---------- vMix list helper (src/vmixlist.js) ---------- */
+const VL = require('../src/vmixlist');
+function fakeList(paths) {
+  const calls = [];
+  const input = { key: 'k', list: paths.map((p) => ({ path: p })) };
+  const engine = { fn: async (fn, a) => { calls.push(fn + (a.Value ? ' ' + a.Value : '')); if (fn === 'ListAdd') input.list.push({ path: a.Value }); if (fn === 'ListRemoveAll') input.list = []; return { ok: true }; } };
+  return { input, engine, calls };
+}
+test('vMix list sync: same, append at the end, rebuild only when allowed', async () => {
+  let f = fakeList(['C:\\a.mp3', 'C:\\b.mp3']);
+  assert.equal(await VL.sync(f.engine, f.input, ['c:/A.mp3', 'C:\\b.mp3']), 'same', 'case and slashes ignored');
+  assert.equal(await VL.sync(f.engine, f.input, ['C:\\a.mp3', 'C:\\b.mp3', 'C:\\c.mp3']), 'appended');
+  assert.deepEqual(f.calls, ['ListAdd C:\\c.mp3']);
+  f = fakeList(['C:\\a.mp3']);
+  assert.equal(await VL.sync(f.engine, f.input, ['C:\\x.mp3'], { canRebuild: false }), 'deferred', 'never empties a playing list');
+  assert.equal(f.calls.length, 0);
+  assert.equal(await VL.sync(f.engine, f.input, ['C:\\x.mp3']), 'rebuilt');
+  assert.deepEqual(f.calls, ['ListRemoveAll', 'ListAdd C:\\x.mp3']);
+  f = fakeList(['C:\\old.mp4', 'C:\\a.mp4']);
+  assert.equal(await VL.sync(f.engine, f.input, ['C:\\a.mp4', 'C:\\q.mp4'], { exact: false }), 'appended', 'not exact: extras stay');
+  assert.equal(VL.indexOf(f.input, 'c:/q.mp4'), 3);
+});
+test('vMix list: tells UC moves from vMix Auto Next', () => {
+  const s = new VL.Selection();
+  s.check({ selectedIndex: 1, state: 'Running' });
+  s.expect(3); assert.equal(s.check({ selectedIndex: 3, state: 'Running' }), false, 'UC asked for 3');
+  assert.equal(s.check({ selectedIndex: 4, state: 'Running' }), true, 'vMix moved on by itself');
+  assert.ok(s.autoNextSeen);
+});
+
+test('mixer fader dB and scale conversion', () => {
+  const e = { store: { config: { vmix: { volumeScale: 'auto', volumeDetected: 'amplitude' } } } };
+  const faderOf = require('../src/engine').Engine.prototype.faderOf.bind({ volumeScale: require('../src/engine').Engine.prototype.volumeScale.bind(e) });
+  assert.equal(Math.round(faderOf(6.25)), 50);
+  assert.equal(faderOf(0), 0);
+  assert.equal(Math.round(faderOf(100)), 100);
+  e.store.config.vmix.volumeScale = 'fader';
+  assert.equal(faderOf(6.25), 6.25);
+});

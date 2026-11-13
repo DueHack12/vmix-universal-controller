@@ -15,7 +15,7 @@ function makeState() {
   const key = () => 'mock-' + (++n).toString(16).padStart(4, '0') + '-0000-4000-8000-000000000000';
   const inp = (type, title, extra = {}) => ({
     key: key(), type, title, state: 'Paused', position: 0, duration: 0, loop: false, muted: false, volume: 100,
-    balance: 0, solo: false, audiobusses: 'M', fields: [], list: [], selectedIndex: 0, level: 0.3, ...extra,
+    balance: 0, solo: false, audiobusses: 'M', fields: [], list: [], selectedIndex: 0, level: 0.3, autoNext: true, ...extra,
   });
   const inputs = [
     inp('Capture', 'Cam 1 · Game', { muted: true, audiobusses: '' }),
@@ -26,9 +26,9 @@ function makeState() {
     inp('GT', 'Scorebug.gtzip', { muted: true, fields: [{ kind: 'text', name: 'Half.Text', value: '1st' }] }),
     inp('GT', 'Breakboard.gtzip', { muted: true, fields: [{ kind: 'text', name: 'TopText.Text', value: '' }, { kind: 'text', name: 'Time.Text', value: '' }] }),
     inp('GT', 'Announcers.gtzip', { muted: true, fields: [{ kind: 'text', name: 'Name1.Text', value: '' }, { kind: 'text', name: 'Name2.Text', value: '' }] }),
-    inp('VideoList', 'MUSIC'),
+    inp('VideoList', 'MUSIC', { autoNext: false }),   // Auto Next off, as SETUP.txt says
     inp('VideoList', 'ADS'),
-    inp('VideoList', 'VIDEOS'),
+    inp('VideoList', 'VIDEOS', { autoNext: false }),   // Auto Next off, as SETUP.txt says
     inp('NDI', 'NDI BRIDGE (John)', { level: 0.5 }),
     inp('NDI', 'NDI BRIDGE (Jane)', { level: 0.45 }),
     inp('NDI', 'NDI BRIDGE (Sideline)', { level: 0.3 }),
@@ -37,6 +37,7 @@ function makeState() {
   inputs.forEach((x, i) => (x.number = i + 1));
   return {
     inputs, overlays: [0, 0, 0, 0], preview: 2, active: 1,
+    volumeScale: 'amplitude',   // how /api reports volume: 'amplitude' (100*(pos/100)^4) or 'fader' (= position)
     recording: false, recStart: 0, streaming: false,
     master: { volume: 100, muted: false }, calls: [], durations: {},
   };
@@ -109,11 +110,6 @@ function run(fn, p) {
     case 'SoloOff': if (i) i.solo = false; return;
     case 'AudioBusOn': if (i && !i.audiobusses.includes(v)) i.audiobusses = (i.audiobusses ? i.audiobusses + ',' : '') + v; return;
     case 'AudioBusOff': if (i) i.audiobusses = i.audiobusses.split(',').filter((b) => b && b !== v).join(','); return;
-    case 'Snapshot': case 'SnapshotInput': {
-      const JPG = '/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAP//////////////////////////////////////////////////////////////////////////////////////2wBDAf//////////////////////////////////////////////////////////////////////////////////////wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAX/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFAEBAAAAAAAAAAAAAAAAAAAAAP/EABQRAQAAAAAAAAAAAAAAAAAAAAD/2gAMAwEAAhEDEQA/AKAP/9k=';
-      try { require('fs').writeFileSync(v, Buffer.from(JPG, 'base64')); } catch { /* bad path */ }
-      return;
-    }
     case 'StartRecording': S.recording = true; S.recStart = Date.now(); return;
     case 'StopRecording': S.recording = false; return;
     case 'StartStopRecording': S.recording = !S.recording; S.recStart = Date.now(); return;
@@ -132,7 +128,7 @@ const timer = setInterval(() => {
     if (i.state !== 'Running' || !i.duration) continue;
     i.position += dt;
     if (i.position >= i.duration) {
-      if (i.list.length && i.selectedIndex < i.list.length) selectItem(i, i.selectedIndex + 1);
+      if (i.list.length && i.autoNext && i.selectedIndex < i.list.length) selectItem(i, i.selectedIndex + 1);
       else { i.position = i.duration; i.state = 'Paused'; }
     }
   }
@@ -146,11 +142,12 @@ function meter(i) {
   return Math.min(1, (i.level || 0.3) * (i.volume / 100) * (0.8 + Math.random() * 0.4));
 }
 
+const reported = (pos) => (S.volumeScale === 'amplitude' ? Math.round(100 * Math.pow(pos / 100, 4) * 100) / 100 : pos);
 function xml() {
   const a = (o) => Object.entries(o).map(([k, v]) => `${k}="${encode(v)}"`).join(' ');
   const inputs = S.inputs.map((i) => {
     const m1 = meter(i), m2 = meter(i);
-    const attrs = a({ key: i.key, number: i.number, type: i.type, title: i.title, shortTitle: i.title, state: i.state, position: Math.round(i.position), duration: i.duration, loop: i.loop ? 'True' : 'False', muted: i.muted ? 'True' : 'False', volume: i.volume, balance: 0, solo: i.solo ? 'True' : 'False', audiobusses: i.audiobusses, meterF1: m1.toFixed(4), meterF2: m2.toFixed(4), selectedIndex: i.selectedIndex || 0 });
+    const attrs = a({ key: i.key, number: i.number, type: i.type, title: i.title, shortTitle: i.title, state: i.state, position: Math.round(i.position), duration: i.duration, loop: i.loop ? 'True' : 'False', muted: i.muted ? 'True' : 'False', volume: reported(i.volume), balance: 0, solo: i.solo ? 'True' : 'False', audiobusses: i.audiobusses, meterF1: m1.toFixed(4), meterF2: m2.toFixed(4), selectedIndex: i.selectedIndex || 0 });
     let inner = encode(i.title);
     for (const f of i.fields) inner += `<${f.kind} index="0" name="${encode(f.name)}">${encode(f.value)}</${f.kind}>`;
     if (i.type === 'VideoList') inner += '<list>' + i.list.map((it) => `<item${it.selected ? ' selected="true"' : ''}>${encode(it.path)}</item>`).join('') + '</list>';
@@ -159,7 +156,7 @@ function xml() {
   const ovs = S.overlays.map((v, k) => (v ? `<overlay number="${k + 1}">${v}</overlay>` : `<overlay number="${k + 1}" />`)).join('');
   const recDur = S.recording ? Math.floor((Date.now() - S.recStart) / 1000) : 0;
   const mlev = Math.min(1, S.inputs.reduce((s, i) => s + meter(i) * (i.audiobusses.includes('M') ? 1 : 0), 0));
-  return `<vmix><version>29.0.0.0</version><edition>4K</edition><inputs>${inputs}</inputs><overlays>${ovs}</overlays><preview>${S.preview}</preview><active>${S.active}</active><fadeToBlack>False</fadeToBlack><recording duration="${recDur}">${S.recording ? 'True' : 'False'}</recording><external>False</external><streaming>${S.streaming ? 'True' : 'False'}</streaming><audio><master volume="${S.master.volume}" muted="False" meterF1="${mlev.toFixed(4)}" meterF2="${mlev.toFixed(4)}" headphonesVolume="74" /></audio></vmix>`;
+  return `<vmix><version>29.0.0.0</version><edition>4K</edition><inputs>${inputs}</inputs><overlays>${ovs}</overlays><preview>${S.preview}</preview><active>${S.active}</active><fadeToBlack>False</fadeToBlack><recording duration="${recDur}">${S.recording ? 'True' : 'False'}</recording><external>False</external><streaming>${S.streaming ? 'True' : 'False'}</streaming><audio><master volume="${reported(S.master.volume)}" muted="False" meterF1="${mlev.toFixed(4)}" meterF2="${mlev.toFixed(4)}" headphonesVolume="74" /></audio></vmix>`;
 }
 
 function createServer() {

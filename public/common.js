@@ -75,16 +75,61 @@ window.BC = (() => {
     root.addEventListener('pointerup', stop); root.addEventListener('pointercancel', stop); root.addEventListener('pointerleave', stop, true);
   }
 
-  /** Replace innerHTML only when it changed and the user isn't typing inside. */
+  /**
+   * Replace innerHTML only when it changed, and never under the operator's finger: not while they
+   * type in a field inside, and not between pointer-down and the click (a section with a running
+   * timer is redrawn every second; replacing the button mid-tap used to lose the tap).
+   */
   const pending = new Set();
+  let pressed = null;
+  const busy = (el) => (pressed && el.contains(pressed)) || (el.contains(document.activeElement) && document.activeElement.matches('input, textarea, select'));
   function patch(el, html) {
     if (!el || el._html === html) return;
-    if (el.contains(document.activeElement) && document.activeElement.matches('input, textarea, select')) { el._pending = html; pending.add(el); return; }
-    el._html = html; el.innerHTML = html;
+    if (busy(el)) { el._pending = html; pending.add(el); return; }
+    el._html = html; el._pending = null; pending.delete(el); el.innerHTML = html;
   }
-  document.addEventListener('focusout', () => {
-    setTimeout(() => { for (const el of [...pending]) if (!el.contains(document.activeElement)) { const h = el._pending; el._pending = null; pending.delete(el); patch(el, h); } }, 50);
-  });
+  function flush() { for (const el of [...pending]) if (!busy(el)) patch(el, el._pending); }
+  document.addEventListener('pointerdown', (e) => { pressed = e.target; }, true);
+  const release = () => setTimeout(() => { pressed = null; flush(); }, 0); // after the click event
+  document.addEventListener('pointerup', release, true);
+  document.addEventListener('pointercancel', release, true);
+  document.addEventListener('focusout', () => { setTimeout(flush, 50); });
 
-  return { esc, attr, mmss, hms, meterPct, cmd, connect, onState, wire, patch, toast, get state() { return state; } };
+  /* ---------- mixer faders and meters ----------
+     The mixer's HTML only changes when channels or their modes change. Meters, fader positions and
+     level labels are updated in place (mixLive), so the page never rebuilds the mixer several times
+     a second, which used to swallow taps and feel laggy.
+     <input type="range" data-fader="id">  sends mix.level while you drag (at most every 60 ms) and
+     on release; while held (and 1.2 s after) the server's value doesn't move it.
+     [data-meter="id"] (height %), [data-meter-l / -r="id"], [data-vol="id"], [data-db="id"] */
+  const held = {}; // channel id -> { down, at, timer, last }
+  const fmtDb = (d) => (d === null || d === undefined ? '-∞ dB' : (d > 0 ? '+' : '') + d.toFixed(1) + ' dB');
+  function sendFader(el, final) {
+    const id = el.dataset.fader; const h = held[id] || (held[id] = {});
+    h.at = Date.now(); h.down = !final;
+    const v = Number(el.value);
+    if (final) { clearTimeout(h.timer); h.timer = null; if (h.last !== v) { h.last = v; cmd('mix.level', { id, value: v }); } return; }
+    if (h.timer) return;
+    h.timer = setTimeout(() => { h.timer = null; const x = Number(el.value); if (h.last !== x) { h.last = x; cmd('mix.level', { id, value: x }); } }, 60);
+  }
+  document.addEventListener('input', (e) => { if (e.target.matches && e.target.matches('input[data-fader]')) sendFader(e.target, false); });
+  document.addEventListener('change', (e) => { if (e.target.matches && e.target.matches('input[data-fader]')) { sendFader(e.target, true); e.target.blur(); } });
+  document.addEventListener('pointerdown', (e) => { const el = e.target.closest && e.target.closest('input[data-fader]'); if (el) { const h = held[el.dataset.fader] || (held[el.dataset.fader] = {}); h.down = true; h.at = Date.now(); } }, true);
+  const isHeld = (id) => { const h = held[id]; return !!h && (h.down || Date.now() - h.at < 1200); };
+  function mixLive(root, channels) {
+    if (!root) return;
+    for (const c of channels) {
+      const sel = (a) => root.querySelectorAll('[' + a + '="' + CSS.escape(c.id) + '"]');
+      for (const m of sel('data-meter')) m.style.height = meterPct(Math.max(c.dbL, c.dbR)) + '%';
+      for (const m of sel('data-meter-l')) m.style.height = meterPct(c.dbL) + '%';
+      for (const m of sel('data-meter-r')) m.style.height = meterPct(c.dbR) + '%';
+      const faders = sel('data-fader');
+      if (!isHeld(c.id)) for (const f of faders) if (Number(f.value) !== c.volume) f.value = c.volume;
+      const v = isHeld(c.id) && faders[0] ? Number(faders[0].value) : c.volume;
+      for (const t of sel('data-vol')) t.textContent = v;
+      for (const t of sel('data-db')) t.textContent = fmtDb(v > 0 ? Math.round(80 * Math.log10(v / 100) * 10) / 10 : null); // vMix's fader dB
+    }
+  }
+
+  return { esc, attr, mmss, hms, meterPct, cmd, connect, onState, wire, patch, toast, mixLive, fmtDb, get state() { return state; } };
 })();

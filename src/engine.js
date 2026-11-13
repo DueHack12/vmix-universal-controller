@@ -14,7 +14,7 @@ const pkg = require('../package.json');
 /** two show names that end up as the same file (Windows ignores capitals) */
 const sameShow = (a, b) => safeName(a).toLowerCase() === safeName(b).toLowerCase();
 
-const FEATURES = ['links', 'ose', 'bridge', 'graphics', 'videos', 'music', 'ads', 'mixer', 'health', 'youtube', 'previews'];
+const FEATURES = ['links', 'ose', 'bridge', 'graphics', 'videos', 'music', 'ads', 'mixer', 'health', 'youtube'];
 
 class Engine {
   constructor(store) {
@@ -93,7 +93,41 @@ class Engine {
   }
   setCached(key, value) { const e = this.cacheEntries.get(key) || { busy: false }; e.value = value; e.at = Date.now(); this.cacheEntries.set(key, e); }
   async fn(name, params = {}) {
+    if (name === 'SetVolume' || name === 'SetMasterVolume') this.noteVolume(name === 'SetMasterVolume' ? 'master' : params.Input, Number(params.Value));
     try { await this.vmix.fn(name, params); return { ok: true }; } catch (e) { this.log('vMix ' + name + ' failed: ' + e.message); return { ok: false, error: e.message }; }
+  }
+
+  /* ---------- vMix volume scale ----------
+   * SetVolume takes the FADER POSITION (0-100; 50 = halfway = about -24 dB).
+   * Depending on the vMix version, the XML reports either that same position ('fader') or the
+   * amplitude in percent ('amplitude' = 100 * (position/100)^4, so halfway reads 6.25).
+   * Reading the amplitude as a position made UC's faders sit too low and "bottom" not silent.
+   * The scale is detected the first time we set a volume and read it back; it can be forced in config. */
+  volumeScale() {
+    const v = this.store.config.vmix || {};
+    return v.volumeScale === 'fader' || v.volumeScale === 'amplitude' ? v.volumeScale : (v.volumeDetected || 'amplitude');
+  }
+  /** XML volume -> fader position 0-100 */
+  faderOf(reported) {
+    const x = Number(reported) || 0;
+    if (x <= 0) return 0;
+    return Math.min(100, this.volumeScale() === 'amplitude' ? 100 * Math.pow(x / 100, 0.25) : x);
+  }
+  noteVolume(ref, pos) { if (ref && pos >= 20 && pos <= 90) this.volumeProbe = { ref, pos, at: Date.now() }; }
+  checkVolumeProbe() {
+    const p = this.volumeProbe; if (!p || !this.snap) return;
+    if (Date.now() - p.at < 200) return;
+    this.volumeProbe = null;
+    const m = this.snap.audio && this.snap.audio.master;
+    const x = p.ref === 'master' ? (m ? m.volume : NaN) : (this.inputByKey(p.ref) || {}).volume;
+    if (!isFinite(x)) return;
+    const amp = 100 * Math.pow(p.pos / 100, 4);
+    const found = Math.abs(x - p.pos) <= 1.5 ? 'fader' : Math.abs(x - amp) <= 1.5 ? 'amplitude' : null;
+    const c = this.store.config.vmix;
+    if (found && c.volumeDetected !== found) {
+      c.volumeDetected = found; this.store.saveConfig();
+      this.log('vMix reports volume on the ' + found + ' scale (set ' + p.pos + ', read ' + x + ')');
+    }
   }
   inputs() { return this.snap ? this.snap.inputs : []; }
   /** re-read vMix now (use before decisions that depend on state a previous call just changed) */
@@ -152,6 +186,7 @@ class Engine {
     if (a.vmixPort !== undefined) c.vmix.port = Number(a.vmixPort) || 8088;
     if (a.vmixUser !== undefined) c.vmix.user = String(a.vmixUser).trim();
     if (a.vmixPassword !== undefined) c.vmix.password = String(a.vmixPassword);
+    if (a.volumeScale !== undefined) c.vmix.volumeScale = ['fader', 'amplitude'].includes(a.volumeScale) ? a.volumeScale : 'auto';
     if (a.driveRoot !== undefined) c.driveRoot = String(a.driveRoot).trim();
     if (a.oscFeedbackHost !== undefined) c.oscFeedback.host = String(a.oscFeedbackHost).trim();
     if (a.oscFeedbackPort !== undefined) c.oscFeedback.port = Number(a.oscFeedbackPort) || 0;
@@ -200,6 +235,7 @@ class Engine {
       const seq = ++this.pollSeq;
       try { await this.vmix.poll(); } catch { /* connected=false */ }
       if (seq === this.pollSeq) this.snap = this.vmix.connected ? this.vmix.snap : prev && { ...prev, stale: true };
+      if (this.vmix.connected) this.checkVolumeProbe();
       for (const f of Object.values(this.features)) {
         if (f.onPoll && this.vmix.connected) { try { await f.onPoll(this.snap, prev); } catch (e) { this.log(f.name + ' poll error: ' + e.message); } }
       }
@@ -226,7 +262,7 @@ class Engine {
       v: this.version,
       app: { name: 'vMix Universal Controller', version: pkg.version },
       show: { name: this.show.name, list: this.store.listShows() },
-      vmix: { connected: this.vmix.connected, host: this.vmix.host, port: this.vmix.port, user: c.vmix.user || '', hasPassword: !!c.vmix.password, error: this.vmix.lastError, version: this.snap ? this.snap.version : '', edition: this.snap ? this.snap.edition : '' },
+      vmix: { connected: this.vmix.connected, host: this.vmix.host, port: this.vmix.port, user: c.vmix.user || '', hasPassword: !!c.vmix.password, volumeScale: this.volumeScale(), volumeScaleSetting: c.vmix.volumeScale || 'auto', error: this.vmix.lastError, version: this.snap ? this.snap.version : '', edition: this.snap ? this.snap.edition : '' },
       config: {
         beginner: !!c.beginner, driveRoot: root,
         driveFound: this.cached('driveFound:' + root, 5000, () => fs.promises.stat(root).then((st) => st.isDirectory(), () => false), false),

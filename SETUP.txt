@@ -21,6 +21,11 @@ ONE-TIME SETUP (about 15 minutes)
 
 4. In vMix, add three Video List inputs (Add Input > Video List) named
    exactly:  MUSIC   ADS   VIDEOS
+   For each one, right-click it > Edit Items and set "Auto Next":
+     MUSIC   Auto Next OFF   (the controller picks the next song)
+     VIDEOS  Auto Next OFF   (the controller picks the next clip)
+     ADS     Auto Next ON    (a break plays straight through)
+   You don't have to load any files: the controller fills the lists.
    Then save the vMix preset.
 
 5. Make sure Google Drive for desktop is running, so this folder shows up:
@@ -75,12 +80,18 @@ Graphics
 - Change a text field while it's on air: the change should show in vMix.
 
 Music
+- The vMix MUSIC list should show every song of the chosen playlist.
 - Press Play, then try FADE OUT and KILL.
+- Playlist mode: queue two songs and play one; when it ends, the next
+  queued song should start by itself.
 - Play a song, then play a video to air: the music should dip and come
   back when the video is off air.
 
 Videos
+- The vMix VIDEOS list should show every clip of the chosen folder.
 - Press CUE: the clip should land in vMix Preview.
+- Queue 2-3 clips (from two different folders), tick auto-next, cue the
+  first and play it on air: the rest should play one after another.
 - While the clip is on air, cue another one: it must NOT replace the clip
   on air. It should load after the director cuts away.
 
@@ -92,6 +103,10 @@ Ads
 
 Mixer
 - Check the meters move. Try MUTE and LISTEN on a mic.
+- Move a fader in vMix: the controller's fader should end up at the same
+  height. Pull the controller's fader to the bottom: vMix's fader should
+  be at the bottom too (silent). If heights still differ, change
+  Master > Mixer > Fader scale and say which setting worked.
 
 iPad / phone
 - On the school Wi-Fi open  http://<this PC's IP>:8790/remote

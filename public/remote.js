@@ -28,10 +28,10 @@
       const muted = c.mode === 'mute' || c.mode === 'mutelisten'; const lis = c.mode === 'listen' || c.mode === 'mutelisten';
       const col = muted ? '#3A3F48' : '#3FB950';
       return `<div class="rstrip ${c.mode}"><b style="font-size:15px">${esc(c.name)}</b><span class="tiny" style="font-weight:800;color:${STATE[c.mode][1]}">${STATE[c.mode][0]}</span>
-        <div class="row" style="gap:10px"><div class="rmeter"><span style="height:${meterPct(Math.max(c.dbL, c.dbR))}%;background:${col}"></span></div>
-          <input class="rfader" type="range" min="0" max="100" value="${c.volume}" data-cmd="mix.level" data-args="${attr({ id: c.id })}" data-key="value" aria-label="${esc(c.name)} level"></div>
-        <input class="hfader grow" style="display:none;width:100%" type="range" min="0" max="100" value="${c.volume}" data-cmd="mix.level" data-args="${attr({ id: c.id })}" data-key="value" aria-label="${esc(c.name)} level">
-        <span class="mono small muted">${c.volume}</span>
+        <div class="row" style="gap:10px"><div class="rmeter"><span data-meter="${esc(c.id)}" style="background:${col}"></span></div>
+          <input class="rfader" type="range" orient="vertical" min="0" max="100" step="1" data-fader="${esc(c.id)}" aria-label="${esc(c.name)} level"></div>
+        <input class="hfader grow" style="display:none;width:100%" type="range" min="0" max="100" step="1" data-fader="${esc(c.id)}" aria-label="${esc(c.name)} level">
+        <span class="mono small muted"><span data-vol="${esc(c.id)}"></span> · <span data-db="${esc(c.id)}"></span></span>
         <div class="col" style="gap:6px;width:100%">
           <button class="rbtn" style="background:${muted ? 'var(--red)' : '#3A4452'}" data-cmd="mix.mute" data-args="${attr({ id: c.id })}">MUTE</button>
           ${c.master ? '' : `<button class="rbtn" style="background:${lis ? 'var(--amber)' : '#3A4452'};color:${lis ? '#111827' : '#fff'}" data-cmd="mix.listen" data-args="${attr({ id: c.id })}">LISTEN</button>`}
@@ -76,9 +76,9 @@
   }
 
   const V = { mixer, ads, music, graphics, videos };
-  function render() { if (!S) return; top(); patch($('view'), (V[tab] || mixer)()); }
+  function render() { if (!S) return; top(); patch($('view'), (V[tab] || mixer)()); BC.mixLive($('view'), S.mixer.channels); }
   BC.onState((s) => { if (s) { S = s; render(); } });
   BC.connect(); BC.wire();
   document.addEventListener('click', (e) => { const t = e.target.closest('[data-tab]'); if (t) { tab = t.dataset.tab; try { localStorage.setItem('bc.remote.tab', tab); } catch { /* */ } render(); } });
-  document.addEventListener('change', (e) => { if (e.target.type === 'range') e.target.blur(); });
+  document.addEventListener('change', (e) => { if (e.target.type === 'range' && !e.target.dataset.fader) e.target.blur(); });
 })();

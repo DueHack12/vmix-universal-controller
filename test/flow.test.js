@@ -71,8 +71,39 @@ test('mixer: mute, listen, and mute+listen = listen not live', async () => {
   assert.equal(inputBy('NDI BRIDGE (John)').volume, 40);
 });
 
-test('music: play, level, fade out cues next track, queue', { skip: !hasFfmpeg }, async () => {
+test('mixer: reads the vMix volume scale right, merges fast fader moves', async () => {
+  const ch = () => engine.state().mixer.channels.find((c) => c.name === 'Jane');
+  // this mock vMix reports amplitude (like the vMix tested on site): fader 50 reads back as 6.25
+  await engine.run('mix.level', { id: 'Jane', value: 50 });
+  assert.ok(await until(() => engine.store.config.vmix.volumeDetected === 'amplitude'), 'scale detected');
+  await sleep(1700); // past the hold time: now the value shown comes from vMix
+  assert.equal(ch().volume, 50, 'fader shows 50, not 6');
+  assert.ok(Math.abs(ch().faderDb - -24.1) < 0.2, 'dB like vMix shows it');
+  // a vMix that reports the fader position
+  mock.state().volumeScale = 'fader';
+  await engine.run('mix.level', { id: 'Jane', value: 70 });
+  assert.ok(await until(() => engine.store.config.vmix.volumeDetected === 'fader'), 'other scale detected');
+  await sleep(1700);
+  assert.equal(ch().volume, 70);
+  mock.state().volumeScale = 'amplitude';
+  await engine.run('mix.level', { id: 'Jane', value: 60 });
+  assert.ok(await until(() => engine.store.config.vmix.volumeDetected === 'amplitude'));
+  // dragging a fader: many values at once, few vMix calls, the last one wins
+  const before = mock.state().calls.filter((c) => c.fn === 'SetVolume').length;
+  await Promise.all(Array.from({ length: 25 }, (_, k) => engine.run('mix.level', { id: 'Jane', value: 20 + k })));
+  const sent = mock.state().calls.filter((c) => c.fn === 'SetVolume').length - before;
+  assert.ok(sent <= 3, 'only ' + sent + ' SetVolume calls for 25 moves');
+  assert.equal(inputBy('NDI BRIDGE (Jane)').volume, 44);
+  assert.equal(ch().volume, 44, 'shows the wanted value at once');
+  // relative (Stream Deck dial) steps from the right starting point
+  await engine.run('mix.level', { id: 'Jane', step: '+5' });
+  assert.equal(inputBy('NDI BRIDGE (Jane)').volume, 49);
+});
+
+test('music: whole playlist in the vMix list, UC selects; fade out cues next; playlist mode plays the queue', { skip: !hasFfmpeg }, async () => {
   assert.ok(await until(() => engine.state().music.songs.length === 3), 'songs scanned');
+  const songs = engine.state().music.songs;
+  assert.ok(await until(() => inputBy('MUSIC').list.length === 3), 'every song of the playlist is in the vMix list');
   await engine.run('music.fadeTime', { ms: 200 });
   await engine.run('music.toggle');
   assert.ok(await until(() => engine.state().music.playing));
@@ -81,17 +112,38 @@ test('music: play, level, fade out cues next track, queue', { skip: !hasFfmpeg }
   assert.equal(engine.show.music.level, 75);
   await engine.run('music.after', { value: 'next' });
   await engine.run('music.fadeout');
-  assert.ok(await until(() => !engine.state().music.playing && engine.state().music.now !== first), 'stopped with next track loaded');
+  assert.ok(await until(() => !engine.state().music.playing && engine.state().music.now !== first), 'stopped with the next song selected');
+  assert.equal(inputBy('MUSIC').list.length, 3, 'list untouched: UC only selects');
   assert.equal(inputBy('MUSIC').volume, 75, 'volume restored for the next play');
-  // queue + playlist mode: back-to-back in the vMix list
-  const songs = engine.state().music.songs;
+  // playing a song selects it in the list; no emptying and reloading
+  const before = mock.state().calls.length;
+  await engine.run('music.play', { path: songs[1].path });
+  assert.equal(inputBy('MUSIC').selectedIndex, 2);
+  assert.ok(!mock.state().calls.slice(before).some((c) => c.fn === 'ListRemoveAll' || c.fn === 'ListAdd'), 'no list rebuild to play a song');
+  await engine.run('music.kill');
+  // playlist mode: when a song ends, the queued song starts
+  mock.state().durations[songs[0].path] = 500;
   await engine.run('music.mode', { value: 'playlist' });
   await engine.run('music.queue', { path: songs[2].path });
   await engine.run('music.play', { path: songs[0].path });
-  assert.equal(inputBy('MUSIC').list.length, 2, 'queue handed to vMix');
+  assert.ok(await until(() => engine.state().music.now === songs[2].name && engine.state().music.playing, 3000), 'queued song played next');
+  assert.equal(engine.state().music.queue.length, 0);
+  await engine.run('music.kill');
+  // single mode: the song ends and the next one waits, paused
+  mock.state().durations[songs[2].path] = 500;
+  await engine.run('music.mode', { value: 'single' });
+  await engine.run('music.play', { path: songs[2].path });
+  const okStop = await until(() => !engine.state().music.playing && engine.state().music.now === songs[0].name, 3000);
+  assert.ok(okStop, 'stopped, next song selected');
+  assert.ok(!engine.state().music.autoNextWarn);
+  // vMix's Auto Next left on: UC notices and says so
+  inputBy('MUSIC').autoNext = true;
+  mock.state().durations[songs[0].path] = 500;
+  await engine.run('music.play', { path: songs[0].path });
+  assert.ok(await until(() => engine.state().music.autoNextWarn, 3000), 'Auto Next warning');
+  inputBy('MUSIC').autoNext = false;
   await engine.run('music.kill');
   await engine.run('music.after', { value: 'restart' });
-  await engine.run('music.mode', { value: 'single' });
 });
 
 test('ads: fill, GO countdown, cued to Preview, plays on Program, timers, back to game', { skip: !hasFfmpeg }, async () => {
@@ -134,19 +186,45 @@ test('ads: cancel countdown, add and remove break playlists', async () => {
   assert.ok(!engine.state().ads.breaks.some((b) => b.name === 'OT break'));
 });
 
-test('videos: cue to Preview, queue, never replaces an on-air clip', { skip: !hasFfmpeg }, async () => {
+test('videos: whole folder in the vMix list, cue selects, never replaces an on-air clip', { skip: !hasFfmpeg }, async () => {
   assert.ok(await until(() => engine.state().videos.clips.length === 3, 10000));
+  assert.ok(await until(() => inputBy('VIDEOS').list.length === 3), 'every clip of the folder is in the vMix list');
   const [c1, c2] = engine.state().videos.clips;
   await engine.run('video.cue', { path: c1.path });
   const v = inputBy('VIDEOS');
-  assert.equal(mock.state().preview, v.number); assert.equal(v.list[0].path, c1.path);
+  assert.equal(mock.state().preview, v.number); assert.equal(v.list[v.selectedIndex - 1].path, c1.path);
+  assert.equal(v.list.length, 3, 'cue only selects');
   await engine.run('video.queue', { path: c2.path });
   mock.state().active = v.number; await engine.refresh();
   const r = await engine.run('video.next');
   assert.ok(r.waiting, 'waits while on air');
-  assert.equal(inputBy('VIDEOS').list[0].path, c1.path);
+  assert.equal(v.list[v.selectedIndex - 1].path, c1.path);
   mock.state().active = 1;
-  assert.ok(await until(() => inputBy('VIDEOS').list[0].path === c2.path), 'cues once off air');
+  assert.ok(await until(() => v.list[v.selectedIndex - 1].path === c2.path), 'cues once off air');
+});
+
+test('videos: a playlist from two folders plays through on air', { skip: !hasFfmpeg }, async () => {
+  const [c1, , c3] = engine.state().videos.clips;
+  const other = path.join(drive, 'Videos', 'Pregame', 'Hype other folder.mp4');
+  fs.copyFileSync(c3.path, other);
+  await engine.run('video.autoCue', { value: 1 });
+  await engine.run('video.queue', { path: c3.path });
+  await engine.run('video.queue', { path: other });
+  const v = inputBy('VIDEOS');
+  assert.ok(await until(() => v.list.some((x) => x.path === other)), 'clip from another folder added to the vMix list');
+  for (const p of [c1.path, c3.path, other]) mock.state().durations[p] = 400;
+  await engine.run('video.cue', { path: c1.path });
+  mock.state().active = v.number; await engine.run('video.playpause', { value: 1 });
+  assert.ok(await until(() => v.list[v.selectedIndex - 1].path === c3.path && v.state === 'Running', 3000), 'second clip plays on air');
+  assert.ok(await until(() => v.list[v.selectedIndex - 1].path === other && v.state === 'Running', 3000), 'clip from the other folder plays next');
+  assert.ok(await until(() => v.state !== 'Running', 3000));
+  assert.equal(engine.state().videos.queue.length, 0, 'playlist done');
+  assert.equal(engine.state().videos.autoNextWarn, false);
+  mock.state().active = 1;
+  await engine.run('video.folder', { name: 'Pregame' });
+  assert.ok(await until(() => v.list.length === 1 && v.list[0].path === other), 'changing folder (off air) shows that folder in vMix');
+  await engine.run('video.folder', { name: 'Highlights' });
+  assert.ok(await until(() => v.list.length === 3));
 });
 
 test('upload target never overwrites', () => {
@@ -244,13 +322,6 @@ test('YouTube: finds the live video on the channel and reads viewers', async () 
   assert.equal(require('../src/features/youtube').videoIdFrom('https://www.youtube.com/live/abcdefghijk?si=x'), 'abcdefghijk');
   await engine.run('youtube.set', { apiKey: '' });
   api.closeAllConnections(); api.close();
-});
-
-test('previews: vMix snapshots become monitor pictures', async () => {
-  await engine.run('previews.set', { enabled: 1, everyMs: 500 });
-  assert.ok(await until(() => engine.state().previews.stamp.pgm && engine.state().previews.stamp.pvw, 3000), 'snapshots written');
-  assert.ok(calls().includes('Snapshot') && calls().includes('SnapshotInput'));
-  await engine.run('previews.set', { enabled: 0 });
 });
 
 test('dials: relative music level, mixer select + level, video jog', async () => {
