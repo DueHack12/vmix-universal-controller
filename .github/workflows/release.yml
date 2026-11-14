@@ -28,22 +28,32 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: 24
-      - name: Tag must match package.json
+      # The tag decides the version. If package.json wasn't updated, the zip still gets the tag's
+      # version (shown on the start page) and the run warns instead of failing.
+      - name: Version from the tag
         run: |
-          v="v$(node -p "require('./package.json').version")"
-          if [ "$v" != "$TAG" ]; then echo "::error::package.json says $v but the tag is $TAG"; exit 1; fi
+          t="${TAG#v}"
+          if ! [[ "$t" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
+            echo "::error::The tag $TAG is not a version like v1.2.0 or v0.2.0-beta"; exit 1
+          fi
+          v="$(node -p "require('./package.json').version")"
+          if [ "$v" != "$t" ]; then echo "::warning::package.json says $v but the tag is $TAG: the zip is labelled $t. Update package.json before the next release."; fi
+          echo "VERSION=$t" >> "$GITHUB_ENV"
       - name: Install ffmpeg
         run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg
       - run: npm test
       - name: Build zip
         run: |
-          mkdir -p dist
+          mkdir -p dist/stage
           zip="vmix-universal-controller-$TAG.zip"
-          git archive --format=zip --prefix="vMix Universal Controller/" -o "dist/$zip" HEAD
+          # git archive applies .gitattributes (CRLF for .bat/.txt, repo-only files left out)
+          git archive --format=tar --prefix="vMix Universal Controller/" HEAD | tar -x -C dist/stage
+          node -e "const f=process.argv[1],p=require(f);p.version=process.argv[2];require('fs').writeFileSync(f,JSON.stringify(p,null,2)+'\n')" "$PWD/dist/stage/vMix Universal Controller/package.json" "$VERSION"
+          (cd dist/stage && zip -qrX "../$zip" "vMix Universal Controller")
           (cd dist && sha256sum "$zip" > "$zip.sha256")
           echo "ZIP=$zip" >> "$GITHUB_ENV"
       - name: Release notes from CHANGELOG.md
-        run: node scripts/release-notes.js "${TAG#v}" > dist/notes.md
+        run: node scripts/release-notes.js "$VERSION" > dist/notes.md || echo "See [CHANGELOG.md](CHANGELOG.md)." > dist/notes.md
       - name: Publish release
         env:
           GH_TOKEN: ${{ github.token }}

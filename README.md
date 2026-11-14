@@ -176,7 +176,7 @@ Double-click **`Try Demo (no vMix).bat`** (or run `npm run demo`). It starts a f
 
 ## Releases
 Releases are built by GitHub Actions. To publish one:
-1. Update `version` in `package.json` and add a section for it at the top of `CHANGELOG.md`.
+1. Update `version` in `package.json` and add a section for it at the top of `CHANGELOG.md`. (If you forget `package.json`, the release still works: the zip takes the version from the tag, and the run shows a warning.)
 2. Commit, then tag and push the tag:
    ```bash
    git tag v0.1.0-beta.1

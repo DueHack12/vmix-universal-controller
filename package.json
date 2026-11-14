@@ -1,6 +1,6 @@
 {
   "name": "vmix-universal-controller",
-  "version": "0.1.0-beta.2",
+  "version": "0.2.0-beta",
   "description": "vMix Universal Controller (vMixUC): one-operator console for vMix sports broadcasts. Graphics, videos, ads, music, mixer, stream health. Companion/Stream Deck over OSC.",
   "main": "server.js",
   "scripts": {
