@@ -294,6 +294,8 @@ test('Graphics Controller: game info, sport follow, field sources, never writes 
   assert.ok(await until(() => engine.state().gc.ok), 'connected');
   assert.equal(engine.state().gc.game.home.name, 'Fairfield Prep');
   assert.equal(engine.show.sport, 'Basketball', 'follows the sport');
+  assert.equal(engine.features.gc.value('home.mascot'), 'JESUITS');
+  assert.equal(engine.features.gc.value('home.color2'), '', 'null colour is empty');
   const g = engine.state().graphics.items.find((x) => x.id === 'breakboard');
   await engine.run('gfx.field', { key: g.key, name: 'TopText.Text', source: 'gc', gc: 'visitor.name' });
   await engine.run('gfx.set', { id: 'breakboard', field: 'Time.Text', value: 'set by GC' });

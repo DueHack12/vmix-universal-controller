@@ -56,8 +56,8 @@
   function gcLink() {
     if (!S.gc || !S.gc.url) return '';
     let href = S.gc.url;
-    try { const u = new URL(S.gc.url); if (/^(127\.0\.0\.1|localhost)$/.test(u.hostname)) u.hostname = location.hostname; href = u.href; } catch { /* keep as typed */ }
-    return `<a class="pill" href="${esc(href)}" target="_blank" rel="noopener" style="text-decoration:none" title="${S.gc.ok ? 'vMix Graphics Controller' : 'vMix Graphics Controller (not running)'}"><span class="dot" style="background:${S.gc.ok ? 'var(--green)' : 'var(--muted)'}"></span>Graphics</a>`;
+    try { const u = new URL(S.gc.url); if (/^(127\.0\.0\.1|localhost)$/.test(u.hostname)) u.hostname = location.hostname; if (u.port === '3001') u.port = '3000'; u.pathname = '/'; href = u.href; } catch { /* keep as typed */ }
+    return `<a class="pill" href="${esc(href)}" target="_blank" rel="noopener" style="text-decoration:none" title="${S.gc.ok ? 'vMix Graphics Controller (its editor opens only on the computer it runs on)' : 'vMix Graphics Controller (not running)'}"><span class="dot" style="background:${S.gc.ok ? 'var(--green)' : 'var(--muted)'}"></span>Graphics</a>`;
   }
   function renderTop() {
     const t = S.tally || {};

@@ -3,7 +3,7 @@
 (() => {
 /* vMix Graphics Controller game info (INTEGRATION.md) */
 const gameLine = (g) => g ? [[g.visitor && g.visitor.name, g.home && g.home.name].filter(Boolean).join(' at '), [g.gender, g.sport].filter(Boolean).join(' ')].filter(Boolean).join(' · ') : '';
-const GC_WORDS = { name: 'name', short: 'short name', abbr: 'abbreviation', logo: 'logo', color: 'colour', color2: 'second colour', record: 'record', sccRecord: 'SCC record', classRank: 'class rank' };
+const GC_WORDS = { name: 'name', fullName: 'full name', mascot: 'mascot', short: 'short name', abbr: 'abbreviation', logo: 'logo', color: 'colour', color2: 'second colour', record: 'record', sccRecord: 'SCC record', classRank: 'class rank' };
 const gcLabel = (k) => { const [a, b] = k.split('.'); return b ? (a === 'home' ? 'Home ' : 'Visitor ') + (GC_WORDS[b] || b) : a[0].toUpperCase() + a.slice(1); };
   const { esc, attr, mmss, cmd, patch } = BC;
   const PAGES = [
@@ -40,7 +40,7 @@ const gcLabel = (k) => { const [a, b] = k.split('.'); return b ? (a === 'home' ?
         <div class="row"><input id="drive" class="grow" value="${esc(S.config.driveRoot)}"><button data-act="drive">Save</button>${btn('Create missing folders', 'drive.makeFolders', {}, '', 'data-confirm="Create any missing vMix Universal Controller folders? Nothing existing is touched."')}</div>
         <div class="small">${S.config.driveFound ? '<span class="ok">✓ Folder found</span>' : '<span class="bad">Folder not found: check Google Drive for desktop, or press Create missing folders.</span>'}</div>
         <div class="row wrap"><span class="small muted">Record drive (space left)</span><input id="recdrive" style="width:120px" placeholder="D:\\" value="${esc(S.health.disk ? S.health.disk.drive : '')}"><button class="b-sm" data-act="recdrive">Save</button></div>`)
-      + panel('4 · Your other tools', `<div class="row wrap"><span class="small muted" style="width:160px">vMix Graphics Controller</span><input id="gc" class="grow" placeholder="http://127.0.0.1:3000 (blank = off)" value="${esc(S.gc.url)}"><button data-act="gc">Save</button>${btn('⟳', 'gc.refresh', {}, 'b-sm')}
+      + panel('4 · Your other tools', `<div class="row wrap"><span class="small muted" style="width:160px">vMix Graphics Controller</span><input id="gc" class="grow" placeholder="http://<Graphics Controller computer>:3001 (blank = off)" value="${esc(S.gc.url)}"><button data-act="gc">Save</button>${btn('⟳', 'gc.refresh', {}, 'b-sm')}
           <span class="small ${S.gc.ok ? 'ok' : S.gc.url ? 'bad' : 'muted'}">${S.gc.ok ? '✓ ' + esc(gameLine(S.gc.game) || 'connected') : S.gc.url ? 'not running: ' + esc(S.gc.error) : 'off'}</span></div>
         <div class="row wrap"><span style="width:160px"></span><label class="small"><input type="checkbox" ${S.gc.followSport ? 'checked' : ''} data-cmd="gc.set" data-key="followSport"> Follow its sport (picks the stat pop event buttons)</label></div>
         <div class="row wrap"><span class="small muted" style="width:160px">OpenStatsEngine</span><input id="ose" class="grow" placeholder="http://192.168.50.21:8080" value="${esc(S.ose.url)}"><button data-act="ose">Save</button>${btn('⟳', 'ose.refresh', {}, 'b-sm')}
@@ -92,7 +92,7 @@ const gcLabel = (k) => { const [a, b] = k.split('.'); return b ? (a === 'home' ?
           <label class="lab">Auto-out after (s, 0 = never)${input('gfx.config', { key: g.key }, 'autoOut', g.autoOut, 'type="number" min="0"')}</label>
           <label class="lab">vMix title<input value="${esc(g.title)}" disabled></label>
           <label class="lab">Companion<input value="/console/gfx/${esc(g.id)}/take" readonly></label></div>
-        <div class="row">${btn('Hide from the dropdown', 'gfx.config', { key: g.key, hidden: true }, 'b-sm', 'data-confirm="Hide this graphic? You can show it again here."')}</div>
+        <div class="row">${btn('Hide from the dropdown', 'gfx.config', { key: g.key, hidden: true }, 'b-sm', 'data-confirm="Hide this graphic? You can show it again here."')}<button class="b-sm" data-act="gcAll" data-key="${esc(g.key)}" title="For titles the Graphics Controller syncs: vMix UC will never write any of their fields">All fields: Filled by Graphics Controller</button></div>
         <h2 style="margin-top:6px">Fields</h2>
         <div class="small muted">Give each field a friendly label and say where its content comes from. Fixed, OpenStatsEngine, game info and logo fields are filled automatically when you TAKE (and scoreboard and game info values keep updating while it's on air).</div>
         <table class="t"><thead><tr><th>vMix field</th><th>Label for operator</th><th>Shown as</th><th>Filled from</th><th></th></tr></thead><tbody>${rows || '<tr><td class="muted small">This title has no fields.</td></tr>'}</tbody></table>
@@ -255,6 +255,13 @@ Feedback: /fb/youtube/live · /fb/youtube/viewers · /fb/mix/selected · /fb/mix
       case 'recdrive': cmd('config.set', { recordDrive: v('recdrive') }); break;
       case 'ose': cmd('ose.set', { url: v('ose') }); break;
       case 'gc': cmd('gc.set', { url: v('gc') }); break;
+      case 'gcAll': {
+        const g = S.graphics.items.find((x) => x.key === a.dataset.key);
+        if (g && confirm('Set every field of ' + g.name + ' to "Filled by Graphics Controller"? vMix UC will then never write them.')) {
+          (async () => { for (const f of g.fields) await cmd('gfx.field', { key: g.key, name: f.name, source: 'gcowned' }); })();
+        }
+        break;
+      }
       case 'bridge': cmd('bridge.set', { host: v('bhost'), port: v('bport') }); break;
       case 'yt': { const k = v('ytkey'); cmd('youtube.set', { ...(k && !k.startsWith('•') ? { apiKey: k } : {}), channelId: v('ytchan'), videoId: v('ytvid') }); break; }
       case 'fb': cmd('config.set', { oscFeedbackHost: v('fbhost'), oscFeedbackPort: v('fbport') }); break;

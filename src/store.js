@@ -22,7 +22,7 @@ function defaultConfig() {
     recordDrive: '',
     pollMs: 250,
     oseUrl: '',
-    gcUrl: 'http://127.0.0.1:3000', // vMix Graphics Controller (INTEGRATION.md); '' = off
+    gcUrl: 'http://127.0.0.1:3001', // vMix Graphics Controller's read-only port (INTEGRATION.md); '' = off
     gcFollowSport: true,
     bridge: { host: '', port: 9500 },
     pin: '',               // '' = no PIN; else other devices must enter it (Master › Setup)

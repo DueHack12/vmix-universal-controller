@@ -1,6 +1,6 @@
 # vMix Universal Controller ↔ vMix Graphics Controller
 
-**Version 3 · 2026-11-17** (see the changelog at the end)
+**Version 5 · 2026-11-17** (see the changelog at the end)
 
 > **The copy that counts is on the Drive:**
 > `Prep Sports Broadcasting/vMix Universal Controller/FPGT Shared/INTEGRATION.md`
@@ -21,7 +21,7 @@
 
 How the two FPGT apps work together.
 
-Both apps run on the vMix PC and talk to the same vMix. They stay separate programs: if one crashes on game night, the other keeps running.
+Both apps talk to the same vMix. vMix UC runs on the vMix PC. The Graphics Controller can run on the vMix PC or on another computer on the same network (today it runs on a Mac). They stay separate programs: if one crashes on game night, the other keeps running.
 
 ## 1. Who does what
 
@@ -29,14 +29,14 @@ Both apps run on the vMix PC and talk to the same vMix. They stay separate progr
 |---|---|---|
 | Job | **What's in** the graphics | **When** things go on air |
 | Owns | Game setup (sport, home/visitor), teams, logos, colours, records, rankings, standings, brackets, the Google Sheet, browser graphics pages, GT title content | TAKE/OUT and tally, music, ads, videos, audio mixer, stream health, Companion/Stream Deck, iPad/phone remotes |
-| Writes to vMix | Title **content**: the Google Sheet "Live" tab (vMix Data Source) and its browser graphics pages | Overlay **on/off**, list inputs (MUSIC/ADS/VIDEOS), audio, and fields set to "Typed by operator" |
-| Ports | 3000 editor, 3001 graphics pages | 8790 web, 9600 OSC (UDP) |
+| Writes to vMix | Title **content**: the Google Sheet "Live" tab (vMix Data Source), its browser graphics pages, and, when its **vMix sync** switch is on, the GT titles' text, images and colours through the vMix API (SetText / SetImage / SetColor). Never the scoreboard's live fields (scores, clock, period, play/shot clock, timeouts, down & distance), which the scoreboard software fills | Overlay **on/off**, list inputs (MUSIC/ADS/VIDEOS), audio, and fields set to "Typed by operator" or "Game info" |
+| Ports | 3000 editor (this computer only, bound to 127.0.0.1), 3001 graphics pages + `/api/game` (read-only, open to the network) | 8790 web, 9600 OSC (UDP) |
 | Drive folder (its own; read-only for the other app) | `Prep Sports Broadcasting\vMix Graphics Control\` | `Prep Sports Broadcasting\vMix Universal Controller\` |
 
 ### Rules
-1. **One writer per vMix field.** If the Graphics Controller fills a title field (through the sheet or Data Source), vMix UC never writes it. In vMix UC's field linker, set those fields to **"Filled by Graphics Controller"** (shown, locked).
-2. **Switching and overlays belong to vMix UC.** The Graphics Controller's idea list includes a "full vMix control tab", and vMix UC now covers that, so the Graphics Controller shouldn't build its own switching or overlay control.
-3. **Drive:** each app writes only in its own folder and may read the other's. Never move, rename or delete anything on the shared Drive. Only copy in.
+1. **One writer per vMix field.** If the Graphics Controller fills a title field (through the sheet, Data Source or its vMix sync), vMix UC never writes it. That includes every non-live text field of the GT titles it syncs (scorebug names/records, intro, breakboard, announcers, lower thirds). In vMix UC's field linker, set those fields to **"Filled by Graphics Controller"** (shown, locked). Master › Graphics has an **"All fields: Filled by Graphics Controller"** button per title for this.
+2. **Switching and overlays belong to vMix UC.** The Graphics Controller has no switching, overlay or IN/OUT control (its "vMix control tab" idea was dropped).
+3. **Drive:** each app writes only in its own folder and may read the other's (plus `FPGT Shared`, by the rules at the top). Never move, rename or delete anything on the shared Drive. Only copy in.
 4. **Never get around bot protection** (MaxPreps / CIAC rankings). vMix UC never fetches those sites; it gets that data from the Graphics Controller.
 5. **Same look:** both apps follow the FPGT `DESIGN.md`.
 
@@ -45,40 +45,49 @@ Both apps run on the vMix PC and talk to the same vMix. They stay separate progr
 ### Level 1: nothing extra (works now)
 Both apps talk to the same vMix. vMix UC reads vMix's state, so its tally shows a graphic as on air no matter which app (or the hardware panel) put it there. The Graphics Controller's 3001 pages can be vMix browser inputs, and vMix UC can TAKE/OUT them like any other overlay.
 
-### Level 2: shared game info (to build)
-The **Graphics Controller provides**:
+### Level 2: shared game info (built on both sides)
+The **Graphics Controller provides** (built, GC v4.8+):
 
 ```
-GET http://<pc>:3000/api/game        → JSON, no auth on the local network
+GET http://<GC computer>:3001/api/game   → JSON, read-only, no auth, CORS open
+    (also http://127.0.0.1:3000/api/game, but only from the computer GC runs on)
 {
-  "sport": "Basketball",           // matches the Graphics Controller's sport names
-  "gender": "Boys",                // "Boys" | "Girls"
-  "home":    { "name": "Fairfield Prep", "short": "PREP", "abbr": "FP",
-               "logo": "G:\\Shared drives\\...\\prep.png", "logoUrl": "/api/asset?...",
-               "color": "#C8102E", "color2": "#FFFFFF",
-               "record": "12-3", "sccRecord": "8-1", "classRank": "LL #4" },
-  "visitor": { ...same fields... },
-  "updatedAt": "2026-11-17T18:00:00Z"   // changes whenever the game setup changes
+  "sport": "Football",            // GC's sport names: Football, Basketball, Hockey, Soccer, …
+  "gender": "Boys",               // "Boys" | "Girls"
+  "home": {
+    "name": "Fairfield Prep",                              // short school name (Teams › Short Name)
+    "fullName": "Fairfield College Preparatory School",    // the key GC uses everywhere
+    "short": "PREP", "abbr": "PREP",                       // both = Teams › Abbr (the sheet has one abbreviation)
+    "mascot": "JESUITS",
+    "logo": "G:\\Shared drives\\Prep Sports Broadcasting\\vMix Graphics Control\\Logos\\….png",
+    "logoUrl": "/api/teams/logo?team=Fairfield%20College%20Preparatory%20School",  // on GC's port 3000 (this computer only)
+    "color": "#C8102E", "color2": null,                    // "#RRGGBB" or null
+    "record": "13-1-2", "sccRecord": "9-0", "classRank": "LL #4"   // classRank: "LL #4", "LL" (no rank) or null
+  },
+  "visitor": { …same fields… },
+  "updatedAt": "2026-11-17T18:00:00.000Z"   // moves only when something above changes
 }
 ```
+
+It describes the game **loaded in vMix** (GC's Control sheet), not whatever game is open in GC's editor. Use `logo` (the Drive path vMix can read) rather than `logoUrl`; `logoUrl` only works on GC's own computer.
 
 Any field may be missing or `null`. vMix UC must cope with that.
 
 **vMix UC does** (built in vMix UC; see `src/features/gc.js`, tested against `test/mock-gc.js`):
-- Master › Setup › 4 has the **Graphics Controller address** (default `http://127.0.0.1:3000`, blank = off) and a "Follow its sport" switch. The start-page checklist shows whether it's connected.
+- Master › Setup › 4 has the **Graphics Controller address**, default `http://127.0.0.1:3001` (works when both apps are on one computer). When GC runs on another computer, set it to `http://<GC computer>:3001`. Blank = off. A saved old default (`127.0.0.1:3000`) is changed to `:3001` automatically. There's also a "Follow its sport" switch, and the start-page checklist shows whether it's connected.
 - Poll `/api/game` every 5 s (and only when the address is set).
 - Use the data:
   - Set the show's sport, which picks the stat-pop event buttons.
-  - Field source **"Game info (Graphics Controller)"** (home name, visitor record, etc.): vMix UC writes it on TAKE and keeps it updated while on air.
+  - Field source **"Game info (Graphics Controller)"** (home name, visitor mascot, record, etc.; `fullName` and `mascot` included): vMix UC writes it on TAKE and keeps it updated while on air. Only for fields GC does **not** sync.
   - Field source **"Filled by Graphics Controller"**: shown locked, and vMix UC never writes it.
   - **Team logo** fields use the Graphics Controller's `logo` path first, then fall back to Drive › Graphics › Logos.
   - Team colours on stat pops when OpenStatsEngine has none.
-  - Accepts small differences: `away` for `visitor`, `abbrev` for `abbr`, `primary` for `color`.
+  - Accepts small differences: `away` for `visitor`, `abbrev` for `abbr`, `primary` for `color`; `null` = empty.
 - If the Graphics Controller isn't running, show "not connected" and keep working with the last values.
 
-### Level 3: buttons both ways
-- vMix UC's top bar has a **Graphics** button (green light when connected) that opens the Graphics Controller. Built.
-- To build in the Graphics Controller: a **Control** button that opens vMix UC (`:8790`).
+### Level 3: buttons both ways (built)
+- vMix UC's top bar has a **Graphics** button (green light when connected). It opens GC's editor on port 3000 of the same host, which only works on the computer GC runs on.
+- The Graphics Controller's top bar has a **Control ↗** button that opens vMix UC at `http://<vMix PC>:8790` (the vMix PC address from GC's Settings). Built.
 - Companion: vMix UC's OSC/HTTP commands stay the way to run things from a Stream Deck. If Graphics Controller actions are needed on a deck (e.g. "UPDATE GOOGLE SHEET"), it should expose them as simple HTTP `POST`s, and they get listed on vMix UC's Companion page.
 
 ## 3. Other apps on the same PC
@@ -90,6 +99,8 @@ Any field may be missing or `null`. vMix UC must cope with that.
 | NDI Audio Bridge | OSC UDP 9500 | vMix UC (cough/mic) |
 
 ## 4. Changelog
+- **5 · 2026-11-17 · vMix UC:** matched version 4. Default address is now `http://127.0.0.1:3001`, and an old saved `:3000` is migrated. `fullName` and `mascot` are usable as Game info. `null` is treated as empty. Master › Graphics has an "All fields: Filled by Graphics Controller" button. The Graphics button opens port 3000. Testing on a Mac: `Start FPGT (Mac).command` runs both. **Graphics Controller:** nothing to do. Please copy this text over `INTEGRATION.md`, since vMix UC's cloud chat can't overwrite files on the Drive.
+- **4 · 2026-11-17 · Graphics Controller:** merged GC's side. Section 2 now matches the `/api/game` that was built: it is served on **port 3001** (port 3000 only answers on GC's own computer, and GC runs on a Mac), the extra fields `fullName` and `mascot`, `short` = `abbr` for now, `color2` may be `null`, `logoUrl` only works on GC's computer. Section 1: GC also writes GT title text/images/colours through the vMix API when its vMix sync is on. The Control button is built. **vMix UC must:** change the default Graphics Controller address to `http://<GC computer>:3001`, and treat every GT title field GC syncs as "Filled by Graphics Controller".
 - **3 · 2026-11-17 · vMix UC:** the shared copy now lives on the Drive (FPGT Shared). vMix UC's side of level 2 is built, plus its Graphics button. **Graphics Controller:** check `/api/game` matches section 2 and add the Control button (level 3).
-- **2 · 2026-11-17 · Graphics Controller:** added `/api/game` (the user reports this is done; vMix UC hasn't seen that version of this file yet, so **merge any differences into this copy**).
+- **2 · 2026-11-17 · Graphics Controller:** added `/api/game`.
 - **1 · 2026-11-17 · vMix UC:** first version.

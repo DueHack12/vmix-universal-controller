@@ -1,6 +1,6 @@
 #!/bin/bash
 # Starts BOTH FPGT apps on a Mac for testing (no vMix needed):
-#   - vMix Graphics Control (from the folder next to this one)  -> http://localhost:3000
+#   - vMix Graphics Control (asks once where its folder is)    -> http://localhost:3000 (editor), :3001 (/api/game)
 #   - vMix Universal Controller DEMO with a fake vMix            -> http://localhost:8791
 # Put both app folders side by side, e.g.
 #   ~/FPGT/vMix Universal Controller/
@@ -13,12 +13,25 @@ if ! command -v node >/dev/null 2>&1; then
   read -r -p "Press Return to close." _; exit 1
 fi
 
-# find the Graphics Control folder next to this one (any name containing "graphics")
+# find the Graphics Control folder: remembered choice, else a folder next to this one, else ask once
 GC=""
-for d in "$UC"/../*; do
-  [ -d "$d" ] && [ -f "$d/package.json" ] && [ "$(cd "$d" && pwd)" != "$UC" ] || continue
-  case "$(basename "$d" | tr '[:upper:]' '[:lower:]')" in *graphics*) GC="$(cd "$d" && pwd)"; break;; esac
-done
+SAVED="$UC/.graphics-control-folder"
+if [ -f "$SAVED" ]; then GC="$(cat "$SAVED")"; [ -f "$GC/package.json" ] || GC=""; fi
+if [ -z "$GC" ]; then
+  for d in "$UC"/../*; do
+    [ -d "$d" ] && [ -f "$d/package.json" ] && [ "$(cd "$d" && pwd)" != "$UC" ] || continue
+    case "$(basename "$d" | tr '[:upper:]' '[:lower:]')" in *graphics*) GC="$(cd "$d" && pwd)"; break;; esac
+  done
+fi
+if [ -z "$GC" ]; then
+  echo "Where is the vMix Graphics Control app folder (the one with server.js and package.json)?"
+  echo "Drag that folder into this window and press Return (or just press Return to skip it):"
+  read -r GC
+  GC="${GC%"${GC##*[![:space:]]}"}"; GC="${GC#"${GC%%[![:space:]]*}"}"   # trim spaces
+  GC="${GC#\'}"; GC="${GC%\'}"; GC="${GC#\"}"; GC="${GC%\"}"; GC="${GC//\\ / }"; GC="${GC%/}"
+  if [ -n "$GC" ] && [ -f "$GC/package.json" ]; then echo "$GC" > "$SAVED"; echo "   Remembered. (Delete .graphics-control-folder to choose again.)"
+  else [ -n "$GC" ] && echo "   No package.json there, skipping the Graphics Controller."; GC=""; fi
+fi
 
 GC_PID=""
 if [ -n "$GC" ]; then

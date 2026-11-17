@@ -1,7 +1,7 @@
 'use strict';
 /**
  * vMix Graphics Controller link (read only). See INTEGRATION.md.
- * Polls GET <gcUrl>/api/game every 5 s:
+ * Polls GET <gcUrl>/api/game every 5 s (gcUrl = http://<GC computer>:3001):
  *   { sport, gender, home: {name, short, abbr, logo, logoUrl, color, color2, record, sccRecord, classRank},
  *     visitor: {...}, updatedAt }
  * Every field is optional. If the Graphics Controller is not running, the last values are kept.
@@ -9,7 +9,7 @@
  */
 const http = require('http');
 
-const TEAM_KEYS = ['name', 'short', 'abbr', 'logo', 'color', 'color2', 'record', 'sccRecord', 'classRank'];
+const TEAM_KEYS = ['name', 'fullName', 'short', 'abbr', 'mascot', 'logo', 'color', 'color2', 'record', 'sccRecord', 'classRank'];
 const FIELDS = ['sport', 'gender', ...['home', 'visitor'].flatMap((s) => TEAM_KEYS.map((k) => s + '.' + k))];
 
 function getJson(url, timeout = 1500) {
@@ -50,6 +50,8 @@ function normalize(g) {
 
 module.exports = (engine) => {
   let game = null; let ok = false; let error = ''; let busy = false; let lastSport = null;
+  // the first build defaulted to :3000, which only answers on the Graphics Controller's own computer
+  if (/^http:\/\/(127\.0\.0\.1|localhost):3000\/?$/.test(engine.store.config.gcUrl || '')) { engine.store.config.gcUrl = 'http://127.0.0.1:3001'; engine.store.saveConfig(); }
   const base = () => String(engine.store.config.gcUrl || '').replace(/\/+$/, '');
 
   async function refresh() {
