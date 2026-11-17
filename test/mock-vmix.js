@@ -164,6 +164,9 @@ function createServer() {
     const u = new URL(req.url, 'http://x');
     if (u.pathname === '/_calls') { res.setHeader('Content-Type', 'application/json'); return res.end(JSON.stringify(S.calls)); }
     if (u.pathname === '/_reset') { S = makeState(); return res.end('ok'); }
+    if (u.pathname === '/_addInput' && req.method === 'POST') {   // demo: add GT titles {type, title, fields:[{kind,name,value}]}
+      let b = ''; req.on('data', (d) => (b += d)); req.on('end', () => { addInput(JSON.parse(b || '{}')); res.end('ok'); }); return;
+    }
     if (u.pathname === '/_durations' && req.method === 'POST') {
       let b = ''; req.on('data', (d) => (b += d)); req.on('end', () => { Object.assign(S.durations, JSON.parse(b || '{}')); res.end('ok'); }); return;
     }
@@ -181,7 +184,13 @@ function createServer() {
   });
 }
 
-module.exports = { createServer, state: () => S, reset: () => { S = makeState(); } };
+function addInput({ type = 'GT', title, fields = [] }) {
+  if (!title || S.inputs.some((i) => i.title === title)) return;
+  const n = S.inputs.length + 1;
+  S.inputs.push({ key: 'mock-' + n.toString(16).padStart(4, '0') + '-1111-4000-8000-000000000000', number: n, type, title, state: 'Paused', position: 0, duration: 0, loop: false, muted: true, volume: 100,
+    balance: 0, solo: false, audiobusses: '', fields: fields.map((f) => ({ kind: f.kind || 'text', name: f.name, value: f.value || '' })), list: [], selectedIndex: 0, level: 0, autoNext: true });
+}
+module.exports = { createServer, addInput, state: () => S, reset: () => { S = makeState(); } };
 
 if (require.main === module) {
   const port = Number(process.argv[2]) || 8088;

@@ -34,7 +34,7 @@
   BC.onState((s) => {
     if (!s) return;
     document.getElementById('ver').textContent = s.app ? 'version ' + s.app.version : '';
-    document.getElementById('vmix').innerHTML = `<span class="dot" style="background:${s.vmix.connected ? 'var(--green)' : 'var(--red)'}"></span>${s.vmix.connected ? 'vMix connected · ' + esc(s.vmix.edition + ' ' + s.vmix.version) : 'vMix not found at ' + esc(s.vmix.host + ':' + s.vmix.port)}`;
+    document.getElementById('vmix').className = 'pill ' + (s.vmix.connected ? 'ok' : 'bad'); document.getElementById('vmix').innerHTML = `<span class="dot" style="background:${s.vmix.connected ? 'var(--green)' : 'var(--red)'}"></span>${s.vmix.connected ? 'vMix connected · ' + esc(s.vmix.edition + ' ' + s.vmix.version) : 'vMix not found at ' + esc(s.vmix.host + ':' + s.vmix.port)}`;
     BC.patch(document.getElementById('shows'), s.show.list.map((n) => `<div class="row card"><b class="grow" style="font-size:16px">${esc(n)}</b>${n === s.show.name ? '<span class="ok small" style="font-weight:700">● loaded</span>' : `<button data-cmd="show.load" data-args='${esc(JSON.stringify({ name: n }))}'>Load</button>`}<a class="pill" href="/control?layout=vertical" style="text-decoration:none;background:var(--key-primary);border-color:rgba(0,0,0,.45);color:#fff;font-weight:700;font-family:var(--ui)" ${n === s.show.name ? '' : 'hidden'}>RUN ▶</a></div>`).join(''));
     const cf = document.getElementById('copyFrom');
     if (cf._n !== s.show.list.join()) { cf._n = s.show.list.join(); cf.innerHTML = '<option value="">blank</option>' + s.show.list.map((n) => `<option value="${esc(n)}">copy settings from ${esc(n)}</option>`).join(''); }

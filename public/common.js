@@ -131,5 +131,12 @@ window.BC = (() => {
     }
   }
 
-  return { esc, attr, mmss, hms, meterPct, cmd, connect, onState, wire, patch, toast, mixLive, fmtDb, get state() { return state; } };
+  /** a Graphics Controller address as seen from this browser: 127.0.0.1/localhost become this page's host */
+  function gcHref(url) { try { const u = new URL(url); if (/^(127\.0\.0\.1|localhost)$/.test(u.hostname)) u.hostname = location.hostname; return u.href; } catch { return url || ''; } }
+  /** "Edit ↗" key that opens a title in the Graphics Controller's editor */
+  function gcEdit(gc, label = 'Edit ↗', cls = 'pill') {
+    if (!gc || !gc.editUrl) return '';
+    return `<a class="${cls}" href="${esc(gcHref(gc.editUrl))}" target="vmixgc" rel="noopener" title="Edit ${esc(gc.name)} in the Graphics Controller (opens only on the computer it runs on)">${esc(label)}</a>`;
+  }
+  return { esc, attr, mmss, hms, meterPct, cmd, connect, onState, wire, patch, toast, mixLive, fmtDb, gcHref, gcEdit, get state() { return state; } };
 })();

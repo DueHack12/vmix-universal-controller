@@ -22,6 +22,15 @@ function guessGroup(name) {
   if (/break|board|poster|network|full|stand|bracket|card/.test(n)) return 'Full screen';
   return 'Lower thirds';
 }
+/** a Graphics Controller title's group -> ours. Scorebug add-ons (flag, timeouts, down box, popup, status) go to
+ *  Other (overlay 4) so they don't replace the scorebug on its channel. */
+function groupFromGc(t) {
+  const g = String(t.group || '').toLowerCase(); const n = String(t.name || '').toLowerCase();
+  if (g === 'scorebug') return /scorebug/.test(n) && !/popup/.test(n) ? 'Scorebug' : 'Other';
+  if (/intro|breakboard|lineup|full|stand|bracket/.test(g)) return 'Full screen';
+  if (/lower|announcer|coach|name|player|location/.test(g)) return 'Lower thirds';
+  return guessGroup(t.name || '');
+}
 const DEFAULT_OVERLAY = { 'Lower thirds': 1, Scorebug: 2, 'Full screen': 3, Other: 4 };
 const EVENTS = {
   soccer: ['GOAL', 'ASSIST', 'SAVE', 'SHOT', 'YELLOW CARD', 'RED CARD'],
@@ -56,7 +65,8 @@ module.exports = (engine) => {
       const c = configured(i.key) || {};
       if (c.hidden) continue;
       const name = c.name || niceName(i.title);
-      const group = c.group || guessGroup(name);
+      const gt = !c.group && engine.features.gc ? engine.features.gc.titleFor(i) : null;
+      const group = c.group || (gt ? groupFromGc(gt) : guessGroup(name));
       out.push({ key: i.key, id: c.id || slug(name), name, group, overlay: Number(c.overlay) || DEFAULT_OVERLAY[group] || 1, input: i, cfg: c });
     }
     out.sort((a, b) => (a.group + a.name).localeCompare(b.group + b.name));
@@ -85,6 +95,11 @@ module.exports = (engine) => {
     const hit = files.find((f) => names.includes(f.replace(/\.[^.]+$/, '').toLowerCase())) || files.find((f) => names.some((n) => n && f.toLowerCase().startsWith(n)));
     return hit ? path.join(dir, hit) : '';
   }
+  const gcTitle = (g) => (engine.features.gc ? engine.features.gc.titleFor(g.input) : null);
+  /** GC lists owned fields as "HOME NAME.Text", "HOME BLOCK.Source"… or just "HOME NAME" */
+  const gcOwns = (t, field) => (t.owns || []).some((o) => o === field || o + '.Text' === field || o + '.Source' === field || field.split('.')[0] === o);
+  /** stored source, else the Graphics Controller default */
+  const effSource = (g, fc) => fc.source || (gcTitle(g) && gcOwns(gcTitle(g), fc.name) ? 'gcowned' : 'typed');
   function sourceValue(f) {
     if (f.source === 'fixed') return f.value ?? '';
     if (f.source === 'ose') return engine.features.ose ? String(engine.features.ose.value(f.ose)) : '';
@@ -129,7 +144,12 @@ module.exports = (engine) => {
     return on ? take(id) : out(id);
   });
   engine.cmd('gfx.allout', async () => { await engine.refresh(); for (const g of list()) if (isOn(g.key)) await out(g.key); return { ok: true }; });
-  engine.cmd('gfx.set', ({ id, field, value }) => { const g = find(id); if (!g) return { ok: false, error: 'No such graphic' }; return setField(g, field, value); });
+  engine.cmd('gfx.set', ({ id, field, value }) => {
+    const g = find(id); if (!g) return { ok: false, error: 'No such graphic' };
+    const f = g.input.fields.find((x) => x.name === field || fieldLabel(x.name) === field);
+    if (f && effSource(g, { ...fieldCfg(g, f.name), name: f.name }) === 'gcowned') return { ok: false, error: field + ' is filled by the Graphics Controller' };
+    return setField(g, field, value);
+  });
   engine.cmd('gfx.config', ({ key, ...patch }) => {
     const c = cfgFor(key);
     if (patch.overlay !== undefined) patch.overlay = Number(patch.overlay);
@@ -207,10 +227,15 @@ module.exports = (engine) => {
       const onAirKeys = new Set(L.filter((g) => isOn(g.key)).map((g) => g.key));
       const hiddenItems = (engine.show.graphics || []).filter((c) => c.hidden).map((c) => { const i = engine.inputByKey(c.key); return i ? { key: c.key, name: c.name || niceName(i.title) } : null; }).filter(Boolean);
       const sport = sportKey(engine.show.sport || engine.show.name);
+      const gcAll = engine.features.gc ? engine.features.gc.titles() : null;
+      const matched = new Set(L.map((g) => gcTitle(g)).filter(Boolean).map((t) => t.id));
+      const gcSport = engine.features.gc && engine.features.gc.state().game ? engine.features.gc.state().game.sport : '';
+      const gcMissing = gcAll ? gcAll.filter((t) => !matched.has(t.id) && (!gcSport || !t.sport || t.sport === gcSport)).map((t) => ({ id: t.id, name: t.name, group: t.group, sport: t.sport })) : [];
       return {
-        warn, hiddenItems, lists: engine.show.lists || {},
+        warn, hiddenItems, lists: engine.show.lists || {}, gcMissing,
         sport, events: (engine.show.statEvents || {})[sport] || EVENTS[sport],
         items: L.map((g) => {
+          const gcT = gcTitle(g);
           const on = onAirKeys.has(g.key);
           const blocker = !on && L.find((o) => o.key !== g.key && o.overlay === g.overlay && onAirKeys.has(o.key));
           return {
@@ -219,9 +244,11 @@ module.exports = (engine) => {
             autoOut: g.cfg.autoOut || 0,
             replaces: blocker ? blocker.name : '',
             statpop: g.cfg.statpop && g.cfg.statpop.enabled ? g.cfg.statpop : null,
+            gc: gcT ? { id: gcT.id, name: gcT.name, editUrl: gcT.editUrl } : null,
             fields: g.input.fields.map((f) => {
               const c = fieldCfg(g, f.name);
-              const source = c.source || 'typed';
+              // a field the Graphics Controller fills is "Filled by Graphics Controller" unless set otherwise here
+              const source = c.source || (gcT && gcOwns(gcT, f.name) ? 'gcowned' : 'typed');
               return { name: f.name, kind: f.kind, value: f.value, label: c.label || fieldLabel(f.name), mode: c.mode || (source === 'typed' || source === 'list' ? 'edit' : 'locked'), source, list: c.list || '', fixed: c.value || '', ose: c.ose || '', gc: c.gc || '', logo: c.logo || '' };
             }),
           };

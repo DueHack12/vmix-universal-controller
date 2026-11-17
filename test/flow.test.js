@@ -305,6 +305,21 @@ test('Graphics Controller: game info, sport follow, field sources, never writes 
   assert.equal(f['TopText.Text'], 'Hand');
   assert.equal(f['Time.Text'], 'set by GC', 'gcowned field untouched');
   assert.equal(engine.state().graphics.items.find((x) => x.id === 'breakboard').fields.find((x) => x.name === 'Time.Text').mode, 'locked');
+  // titles: matched by name, Edit link, fields GC fills are locked by default, others stay typed
+  mock.addInput({ type: 'GT', title: 'BK INTRO (Thermal - Normal logo).gtzip', fields: [{ name: 'HOME NAME.Text' }, { name: 'AWAY NAME.Text' }, { name: 'NOTE.Text' }] });
+  await engine.run('gc.refresh'); await engine.refresh();
+  const intro = () => engine.state().graphics.items.find((x) => x.title.startsWith('BK INTRO'));
+  assert.ok(await until(() => intro() && intro().gc), 'BK INTRO matched to the GC title');
+  assert.equal(intro().gc.id, 'bk-intro');
+  assert.equal(intro().gc.editUrl, 'http://127.0.0.1:' + gcSrv.address().port + '/#title=bk-intro');
+  assert.equal(intro().fields.find((x) => x.name === 'HOME NAME.Text').source, 'gcowned');
+  assert.equal(intro().fields.find((x) => x.name === 'NOTE.Text').source, 'typed');
+  assert.equal((await engine.run('gfx.set', { id: intro().id, field: 'HOME NAME.Text', value: 'x' })).ok, false, 'refuses a GC field');
+  assert.equal((await engine.run('gfx.set', { id: intro().id, field: 'NOTE.Text', value: 'ok' })).ok, true);
+  assert.deepEqual(engine.state().graphics.gcMissing, [], 'all Basketball titles are in vMix');
+  gcSrv.game.sport = 'Football'; await engine.run('gc.refresh');
+  assert.deepEqual(engine.state().graphics.gcMissing.map((t) => t.name), ['INTRO L3 MNF'], 'Football title not in vMix');
+  gcSrv.game.sport = 'Basketball'; await engine.run('gc.refresh');
   // a change in the Graphics Controller reaches the field while it's on air
   gcSrv.game.visitor.name = 'Notre Dame';
   await engine.run('gc.refresh');

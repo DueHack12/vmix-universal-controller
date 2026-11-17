@@ -31,7 +31,7 @@ const gcLabel = (k) => { const [a, b] = k.split('.'); return b ? (a === 'home' ?
       <td class="small ${ST[j.status][1]}">${S.links.picking === j.id ? '<span style="color:var(--blue-text)">◎ waiting… click the input in vMix so it goes to Preview</span>' : ST[j.status][0]}</td>
       <td style="white-space:nowrap">${S.links.picking === j.id ? (S.links.previewTitle ? btn('Use “' + esc(S.links.previewTitle) + '” (already in Preview)', 'link.usePreview', { job: j.id }, 'b-sm') + ' ' : '') + btn('Cancel', 'link.cancelPick', {}, 'b-sm') : btn('◎ Pick in vMix', 'link.pick', { job: j.id }, 'b-sm b-dash')} ${j.key ? btn('Identify', 'link.identify', { key: j.key }, 'b-sm', 'title="Puts it in vMix Preview (never Program)"') : ''}</td></tr>`).join('');
     return panel('1 · Find vMix', `<div class="muted small">vMix needs one setting: <b>Settings › Web Controller › on</b> (port 8088). On the vMix PC the address is 127.0.0.1.</div>
-        <div class="row wrap"><span class="pill"><span class="dot" style="background:${S.vmix.connected ? 'var(--green)' : 'var(--red)'}"></span>${S.vmix.connected ? 'Connected · vMix ' + esc(S.vmix.edition + ' ' + S.vmix.version) + ' · ' + S.inputs.length + ' inputs' : 'Not connected: ' + esc(S.vmix.error)}</span>
+        <div class="row wrap"><span class="pill ${S.vmix.connected ? 'ok' : 'bad'}"><span class="dot" style="background:${S.vmix.connected ? 'var(--green)' : 'var(--red)'}"></span>${S.vmix.connected ? 'Connected · vMix ' + esc(S.vmix.edition + ' ' + S.vmix.version) + ' · ' + S.inputs.length + ' inputs' : 'Not connected: ' + esc(S.vmix.error)}</span>
         <input id="vhost" style="width:170px" value="${esc(S.vmix.host)}"><input id="vport" style="width:90px" value="${esc(S.vmix.port)}"><button data-act="vmix">Connect</button></div>
         <div class="row wrap"><span class="small muted">Only if you set a password in vMix › Web Controller:</span><input id="vuser" style="width:140px" placeholder="user name" value="${esc(S.vmix.user)}"><input id="vpass" type="password" style="width:140px" placeholder="password" value="${S.vmix.hasPassword ? '••••••••' : ''}"></div>`)
       + panel('2 · Assign jobs', `<div class="muted small">Matched automatically. Easiest fix: <b>◎ Pick in vMix</b>, then click the input in vMix so it goes to <b style="color:var(--green)">Preview</b>. Links use vMix's permanent input ID, so renaming inputs later is fine.</div>
@@ -65,7 +65,8 @@ const gcLabel = (k) => { const [a, b] = k.split('.'); return b ? (a === 'home' ?
     if (!items.find((g) => g.key === gsel)) gsel = items[0] ? items[0].key : '';
     const g = items.find((x) => x.key === gsel);
     const listNames = Object.keys(G.lists || {});
-    const left = `<div class="gl">${items.map((x) => `<button data-gsel="${esc(x.key)}" class="${x.key === gsel ? 'b-sel' : ''}"><span class="grow ellipsis">${esc(x.name)}</span><span class="tiny muted">${esc(x.group)} · ${x.overlay}</span>${x.statpop ? '<span class="badge" style="background:var(--accent)">STAT</span>' : ''}</button>`).join('') || '<span class="small muted">No GT titles in vMix.</span>'}
+    const left = `<div class="gl">${items.map((x) => `<button data-gsel="${esc(x.key)}" class="${x.key === gsel ? 'b-sel' : ''}"><span class="grow ellipsis">${esc(x.name)}</span><span class="tiny muted">${esc(x.group)} · ${x.overlay}</span>${x.statpop ? '<span class="badge" style="background:var(--accent)">STAT</span>' : ''}${x.gc ? '<span class="tag-gc" title="Graphics Controller title">GC</span>' : ''}</button>`).join('') || '<span class="small muted">No GT titles in vMix.</span>'}
+      ${(G.gcMissing || []).length ? `<div class="col" style="gap:4px;margin-top:10px"><span class="lab">In the Graphics Controller, not in vMix</span>${G.gcMissing.map((t) => `<div class="row small muted"><span class="grow ellipsis">${esc(t.name)}</span><span class="tiny">${esc(t.group || '')}</span></div>`).join('')}<span class="tiny muted">Add these GT titles in vMix (the Graphics Controller shows where each file is), then they appear above.</span></div>` : ''}
       ${G.hiddenItems.map((h) => `<div class="row small muted"><span class="grow">${esc(h.name)} (hidden)</span>${btn('Show', 'gfx.config', { key: h.key, hidden: false }, 'b-sm')}</div>`).join('')}</div>`;
     let right = '<span class="muted">Pick a graphic.</span>';
     if (g) {
@@ -85,7 +86,8 @@ const gcLabel = (k) => { const [a, b] = k.split('.'); return b ? (a === 'home' ?
       }).join('');
       const fieldNames = [['', '— none —'], ...g.fields.map((f) => [f.name, f.name])];
       const sp = g.statpop || {};
-      right = `<div class="grid2" style="grid-template-columns:repeat(3,minmax(0,1fr))">
+      right = `${g.gc ? `<div class="row gcbar"><span class="tag-gc">GC</span><span class="grow small">Graphics Controller title <b>${esc(g.gc.name)}</b>. Its content is made there; fields it fills are locked here.</span>${BC.gcEdit(g.gc, 'Edit in Graphics Controller ↗')}</div>` : ''}
+        <div class="grid2" style="grid-template-columns:repeat(3,minmax(0,1fr))">
           <label class="lab">Name in vMix UC${input('gfx.config', { key: g.key }, 'name', g.name)}</label>
           <label class="lab">Group${select('gfx.config', { key: g.key }, 'group', ['Lower thirds', 'Full screen', 'Scorebug', 'Other'], g.group)}</label>
           <label class="lab">Overlay channel${select('gfx.config', { key: g.key }, 'overlay', [1, 2, 3, 4], g.overlay)}</label>

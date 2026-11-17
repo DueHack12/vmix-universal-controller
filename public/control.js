@@ -55,9 +55,7 @@
   /** opens the vMix Graphics Controller; 127.0.0.1/localhost become this page's host so it works from other computers */
   function gcLink() {
     if (!S.gc || !S.gc.url) return '';
-    let href = S.gc.url;
-    try { const u = new URL(S.gc.url); if (/^(127\.0\.0\.1|localhost)$/.test(u.hostname)) u.hostname = location.hostname; if (u.port === '3001') u.port = '3000'; u.pathname = '/'; href = u.href; } catch { /* keep as typed */ }
-    return `<a class="pill" href="${esc(href)}" target="_blank" rel="noopener" style="text-decoration:none" title="${S.gc.ok ? 'vMix Graphics Controller (its editor opens only on the computer it runs on)' : 'vMix Graphics Controller (not running)'}"><span class="dot" style="background:${S.gc.ok ? 'var(--green)' : 'var(--muted)'}"></span>Graphics</a>`;
+    return `<a class="pill" href="${esc(BC.gcHref(S.gc.editorUrl || S.gc.url))}" target="vmixgc" rel="noopener" title="${S.gc.ok ? 'vMix Graphics Controller (its editor opens only on the computer it runs on)' : 'vMix Graphics Controller (not running)'}"><span class="dot" style="background:${S.gc.ok ? 'var(--green)' : 'var(--muted)'}"></span>Graphics</a>`;
   }
   function renderTop() {
     const t = S.tally || {};
@@ -66,7 +64,7 @@
     patch(document.getElementById('top'), `
       <div class="logo">UC</div>
       <div class="grow ellipsis" style="font-weight:700">${esc(S.show.name)}</div>
-      <span class="pill"><span class="dot" style="background:${conn ? 'var(--green)' : 'var(--red)'}"></span>vMix ${conn ? esc(S.vmix.version || '') : 'offline'}</span>
+      <span class="pill ${conn ? 'ok' : 'bad'}"><span class="dot" style="background:${conn ? 'var(--green)' : 'var(--red)'}"></span>vMix ${conn ? esc(S.vmix.version || '') : 'offline'}</span>
       ${gcLink()}<a class="pill" href="/master" style="text-decoration:none">⚙ Master</a><button class="pill" data-ui="resetView" title="Back to the show's default open/closed sections">Reset view</button>
       <a class="pill" href="/control?layout=${layout === 'vertical' ? 'horizontal' : 'vertical'}" style="text-decoration:none">${layout === 'vertical' ? '⇆ Horizontal' : '⇅ Vertical'}</a>
       <span class="${t.streaming ? 'tag-live' : 'tag-off'}">${t.streaming ? '● LIVE' : 'OFF AIR'}</span>
@@ -124,14 +122,15 @@
   function renderGfx() {
     const L = S.graphics.items; const g = gfxSel();
     const on = L.filter((x) => x.onAir);
-    const opts = L.map((x) => `<option value="${esc(x.id)}" ${g && x.id === g.id ? 'selected' : ''}>${esc(x.group + ' › ' + x.name + (x.onAir ? '   ● ON AIR' : ''))}</option>`).join('');
+    const opts = L.map((x) => `<option value="${esc(x.id)}" ${g && x.id === g.id ? 'selected' : ''}>${esc(x.group + ' › ' + x.name + (x.gc ? '  · GC' : '') + (x.onAir ? '   ● ON AIR' : ''))}</option>`).join('');
     const sel = `<select class="grow" style="font-weight:700;font-size:14px" data-ui-select="gfx">${opts || '<option>No GT titles found in vMix</option>'}</select>`;
     const takeBtn = g ? `<button class="${g.onAir ? 'take-on' : 'take'}" data-cmd="gfx.take" data-args="${attr({ id: g.id })}">${g.onAir ? '● ON AIR' : 'TAKE'}</button>` : '';
     const outBtn = g ? btn('OUT', 'gfx.out', { id: g.id }) : '';
     const checkBtn = g ? ui_('CHECK', 'check:' + g.id) : '';
+    const editBtn = g && g.gc ? BC.gcEdit(g.gc, 'Edit ↗') : '';
     const chips = on.map((x) => `<button class="chip-on" data-cmd="gfx.out" data-args="${attr({ id: x.id })}" title="Click to take it out">${esc(x.name)} <span class="mono" style="font-weight:600">${mmss(x.onAirSecs)}</span> ✕</button>`).join('');
     const tallyLine = `<div class="row wrap"><span class="tiny" style="font-weight:800;letter-spacing:1px;color:${on.length ? 'var(--red-text)' : 'var(--muted)'}">${on.length ? '● ON AIR' : 'NOTHING ON AIR'}</span>${chips}<span class="grow"></span><span class="tiny" style="color:${on.length ? 'var(--red-text)' : 'var(--muted)'}">✓ vMix tally</span></div>`;
-    if (!isOpen('gfx')) return `<div class="sec-body"><div class="tally ${on.length ? 'on' : ''}"><div class="bar">${barTitle('gfx')}${sel}${checkBtn}${takeBtn}${outBtn}</div>${tallyLine}</div></div>`;
+    if (!isOpen('gfx')) return `<div class="sec-body"><div class="tally ${on.length ? 'on' : ''}"><div class="bar">${barTitle('gfx')}${sel}${editBtn}${checkBtn}${takeBtn}${outBtn}</div>${tallyLine}</div></div>`;
     let meta = '';
     if (g) meta = g.onAir ? 'On air now' : g.replaces ? '⚠ Taking this will replace: ' + g.replaces : 'Goes on top of what is on air now';
     const lists = S.graphics.lists || {};
@@ -162,7 +161,8 @@
         <div class="row"><span class="grow" style="font-weight:700">${esc(line)}</span><button class="b-red" data-ui="spTake:${esc(g.id)}">TAKE STAT POP</button></div></div>`;
     }
     return head('gfx', on.length ? 'ON AIR: ' + on.map((x) => x.name).join(', ') : 'Nothing on air', on.length ? 'var(--red-text)' : '') + `<div class="sec-body">
-      <div class="row">${sel}<a class="pill" href="/master#graphics" style="text-decoration:none">⚙ Manage</a></div>
+      <div class="row">${sel}${editBtn}<a class="pill" href="/master#graphics" style="text-decoration:none">⚙ Manage</a></div>
+      ${g && g.gc ? `<div class="tiny muted">Graphics Controller title <b style="color:var(--soft)">${esc(g.gc.name)}</b>: its fields are filled there. Edit opens it in the Graphics Controller.</div>` : ''}
       <div class="small" style="color:${g && g.replaces ? 'var(--amber)' : 'var(--muted)'}">${esc(meta)}</div>
       ${statpop}${fields}
       <div class="row">${checkBtn.replace('<button ', '<button style="flex:1" ')}${takeBtn.replace('<button ', '<button style="flex:1.4;padding:12px" ')}${outBtn.replace('<button ', '<button style="flex:1" ')}</div>

@@ -48,7 +48,22 @@ function normalize(g) {
   };
 }
 
+/** GC's title list (GET /api/titles, INTEGRATION.md v6) -> [{id, name, sport, group, input, owns, editPath}] */
+function normalizeTitles(r) {
+  const arr = Array.isArray(r) ? r : (r && Array.isArray(r.titles) ? r.titles : null);
+  if (!arr) return null;
+  return arr.filter((t) => t && (t.id || t.name)).map((t) => ({
+    id: String(t.id || t.name), name: String(t.name || t.id), sport: t.sport ? String(t.sport) : '', group: t.group ? String(t.group) : '',
+    input: t.input ? String(t.input) : '', file: t.file ? String(t.file) : '',
+    owns: Array.isArray(t.owns) ? t.owns.map(String) : [],
+    editPath: t.editUrl ? String(t.editUrl) : '/#title=' + encodeURIComponent(String(t.id || t.name)),
+  }));
+}
+/** same rule as GC's matchInputs: "BK SCOREBUG.gtzip" / "BK INTRO (Thermal - Normal logo).gtzip" -> "bk scorebug" / "bk intro" */
+const normTitle = (s) => String(s || '').toLowerCase().replace(/\.gt(zip|xml)$/, '').replace(/\s*\((thermal|mesh|gradient)[^)]*\)/, '').replace(/[^a-z0-9]+/g, ' ').trim();
+
 module.exports = (engine) => {
+  let titles = null; let titlesOk = false; let polls = 0;
   let game = null; let ok = false; let error = ''; let busy = false; let lastSport = null;
   // the first build defaulted to :3000, which only answers on the Graphics Controller's own computer
   if (/^http:\/\/(127\.0\.0\.1|localhost):3000\/?$/.test(engine.store.config.gcUrl || '')) { engine.store.config.gcUrl = 'http://127.0.0.1:3001'; engine.store.saveConfig(); }
@@ -65,6 +80,7 @@ module.exports = (engine) => {
       game = g; ok = true; error = '';
       if (JSON.stringify(game) !== was) engine.log('Graphics Controller: ' + [g.visitor.name, g.home.name].filter(Boolean).join(' at ') + (g.sport ? ' · ' + [g.gender, g.sport].filter(Boolean).join(' ') : ''));
       // follow the game's sport (picks the stat pop event buttons); only when it changes there
+      if (polls++ % 3 === 0 || titles === null) await refreshTitles();
       if (g.sport && g.sport !== lastSport && engine.store.config.gcFollowSport !== false) {
         lastSport = g.sport;
         if (engine.show.sport !== g.sport) { engine.show.sport = g.sport; engine.save(); }
@@ -73,10 +89,30 @@ module.exports = (engine) => {
     finally { busy = false; engine.changed(); }
   }
 
+  async function refreshTitles() {
+    try { titles = normalizeTitles(await getJson(base() + '/api/titles')); titlesOk = !!titles; return; }
+    catch (e) { titlesOk = false; if (!/HTTP 404/.test(e.message)) return; }   // 404 = this GC version has no title list yet
+    // Fallback until GC serves /api/titles: its editor's own title list + vMix links. Only reachable when GC runs
+    // on this same computer (its editor port answers on 127.0.0.1 only). Remove once every GC has /api/titles.
+    try {
+      const man = await getJson(editorUrl('/gt/manifest.json'));
+      let links = {}; try { links = (await getJson(editorUrl('/api/gt/state'))).inputs || {}; } catch { /* no links yet */ }
+      const LIVE = /SCORE|CLOCK|QUARTER|PERIOD|HALF|SHOT|PLAY CLOCK|\bTO\b|TIMEOUT|DOWN|DIST|POSS/i;   // GC never writes live fields
+      titles = normalizeTitles((man.titles || []).map((t) => ({
+        id: t.id, name: t.name, sport: t.sport, group: t.group, file: t.file, input: links[t.id] || '',
+        owns: [...(t.texts || []).map((x) => x.name).filter((n) => !LIVE.test(n)), ...(t.layers || []).filter((l) => l.type === 'image').map((l) => l.name)],
+      })));
+    } catch { titles = null; }
+  }
+  /** editor address for a path: GC's editor is on port 3000 of the same computer (3001 is the read-only port) */
+  function editorUrl(p = '/') {
+    try { const u = new URL(base()); if (u.port === '3001') u.port = '3000'; return u.origin + (p.startsWith('/') ? p : '/' + p); } catch { return ''; }
+  }
+
   let timer = null;
-  engine.cmd('gc.refresh', async () => { await refresh(); return { ok, error }; });
+  engine.cmd('gc.refresh', async () => { polls = 0; await refresh(); return { ok, error }; });
   engine.cmd('gc.set', async ({ url, followSport }) => {
-    if (url !== undefined) { engine.store.config.gcUrl = String(url || '').trim(); lastSport = null; if (!engine.store.config.gcUrl) game = null; }
+    if (url !== undefined) { engine.store.config.gcUrl = String(url || '').trim(); lastSport = null; polls = 0; if (!engine.store.config.gcUrl) { game = null; titles = null; } }
     if (followSport !== undefined) engine.store.config.gcFollowSport = followSport === true || Number(followSport) === 1;
     engine.store.saveConfig(); await refresh(); return { ok: true };
   });
@@ -99,10 +135,21 @@ module.exports = (engine) => {
       const t = game && game[side(s)];
       return t && Object.keys(t).length ? { name: t.name, short: t.short, abbrev: t.abbr, color: t.color, logo: t.logo } : null;
     },
+    /** the GC title for a vMix input {key, number, title}: GC's own link first, then the name */
+    titleFor(input) {
+      if (!titles || !input) return null;
+      const t = titles.find((x) => x.input && (x.input === input.key || x.input === String(input.number)))
+        || titles.find((x) => !x.input && normTitle(x.name) === normTitle(input.title))
+        || titles.find((x) => !x.input && normTitle(input.title).startsWith(normTitle(x.name)));
+      return t ? { id: t.id, name: t.name, group: t.group, sport: t.sport, owns: t.owns, editUrl: editorUrl(t.editPath) } : null;
+    },
+    titles() { return titles; },
     state() {
-      return { url: base(), ok, error, followSport: engine.store.config.gcFollowSport !== false, game, fields: FIELDS };
+      return { url: base(), ok, error, followSport: engine.store.config.gcFollowSport !== false, game, fields: FIELDS, editorUrl: base() ? editorUrl('/') : '', titlesKnown: titles !== null, titleCount: titles ? titles.length : 0 };
     },
   };
 };
 module.exports.normalize = normalize;
+module.exports.normalizeTitles = normalizeTitles;
+module.exports.normTitle = normTitle;
 module.exports.FIELDS = FIELDS;

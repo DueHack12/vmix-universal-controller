@@ -46,4 +46,4 @@ else
 fi
 
 echo "== vMix Universal Controller (demo, fake vMix)"
-node scripts/demo.js
+if [ -n "$GC" ]; then node scripts/demo.js --gc-dir "$GC"; else node scripts/demo.js; fi
