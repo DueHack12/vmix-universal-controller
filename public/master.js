@@ -1,6 +1,10 @@
 /* vMix Universal Controller: Master (settings & management). */
 'use strict';
 (() => {
+/* vMix Graphics Controller game info (INTEGRATION.md) */
+const gameLine = (g) => g ? [[g.visitor && g.visitor.name, g.home && g.home.name].filter(Boolean).join(' at '), [g.gender, g.sport].filter(Boolean).join(' ')].filter(Boolean).join(' · ') : '';
+const GC_WORDS = { name: 'name', short: 'short name', abbr: 'abbreviation', logo: 'logo', color: 'colour', color2: 'second colour', record: 'record', sccRecord: 'SCC record', classRank: 'class rank' };
+const gcLabel = (k) => { const [a, b] = k.split('.'); return b ? (a === 'home' ? 'Home ' : 'Visitor ') + (GC_WORDS[b] || b) : a[0].toUpperCase() + a.slice(1); };
   const { esc, attr, mmss, cmd, patch } = BC;
   const PAGES = [
     ['setup', '⚙', 'Setup'], ['graphics', '▣', 'Graphics'], ['ads', '$', 'Ads'], ['music', '♪', 'Music'], ['mixer', '≡', 'Mixer'],
@@ -36,7 +40,10 @@
         <div class="row"><input id="drive" class="grow" value="${esc(S.config.driveRoot)}"><button data-act="drive">Save</button>${btn('Create missing folders', 'drive.makeFolders', {}, '', 'data-confirm="Create any missing vMix Universal Controller folders? Nothing existing is touched."')}</div>
         <div class="small">${S.config.driveFound ? '<span class="ok">✓ Folder found</span>' : '<span class="bad">Folder not found: check Google Drive for desktop, or press Create missing folders.</span>'}</div>
         <div class="row wrap"><span class="small muted">Record drive (space left)</span><input id="recdrive" style="width:120px" placeholder="D:\\" value="${esc(S.health.disk ? S.health.disk.drive : '')}"><button class="b-sm" data-act="recdrive">Save</button></div>`)
-      + panel('4 · Your other tools', `<div class="row wrap"><span class="small muted" style="width:160px">OpenStatsEngine</span><input id="ose" class="grow" placeholder="http://192.168.50.21:8080" value="${esc(S.ose.url)}"><button data-act="ose">Save</button>${btn('⟳', 'ose.refresh', {}, 'b-sm')}
+      + panel('4 · Your other tools', `<div class="row wrap"><span class="small muted" style="width:160px">vMix Graphics Controller</span><input id="gc" class="grow" placeholder="http://127.0.0.1:3000 (blank = off)" value="${esc(S.gc.url)}"><button data-act="gc">Save</button>${btn('⟳', 'gc.refresh', {}, 'b-sm')}
+          <span class="small ${S.gc.ok ? 'ok' : S.gc.url ? 'bad' : 'muted'}">${S.gc.ok ? '✓ ' + esc(gameLine(S.gc.game) || 'connected') : S.gc.url ? 'not running: ' + esc(S.gc.error) : 'off'}</span></div>
+        <div class="row wrap"><span style="width:160px"></span><label class="small"><input type="checkbox" ${S.gc.followSport ? 'checked' : ''} data-cmd="gc.set" data-key="followSport"> Follow its sport (picks the stat pop event buttons)</label></div>
+        <div class="row wrap"><span class="small muted" style="width:160px">OpenStatsEngine</span><input id="ose" class="grow" placeholder="http://192.168.50.21:8080" value="${esc(S.ose.url)}"><button data-act="ose">Save</button>${btn('⟳', 'ose.refresh', {}, 'b-sm')}
           <span class="small ${S.ose.ok ? 'ok' : S.ose.url ? 'bad' : 'muted'}">${S.ose.ok ? '✓ ' + esc((S.ose.scoreboard && (S.ose.scoreboard.AwayName + ' at ' + S.ose.scoreboard.HomeName)) || 'connected') + ' · rosters ' + S.ose.rosters.home.length + ' / ' + S.ose.rosters.away.length : S.ose.url ? 'not reachable: ' + esc(S.ose.error) : 'not set'}</span></div>
         <div class="row wrap"><span class="small muted" style="width:160px">NDI Audio Bridge (OSC)</span><input id="bhost" style="width:170px" placeholder="IP of the announcer computer" value="${esc(S.bridge.host)}"><input id="bport" style="width:90px" value="${esc(S.bridge.port)}"><button data-act="bridge">Save</button>
           <span class="small muted">${S.bridge.heard !== null ? 'last reply ' + S.bridge.heard + ' s ago' : 'cough buttons appear on mixer channels that have a Bridge mic (Mixer page)'}</span></div>`)
@@ -62,12 +69,14 @@
       ${G.hiddenItems.map((h) => `<div class="row small muted"><span class="grow">${esc(h.name)} (hidden)</span>${btn('Show', 'gfx.config', { key: h.key, hidden: false }, 'b-sm')}</div>`).join('')}</div>`;
     let right = '<span class="muted">Pick a graphic.</span>';
     if (g) {
-      const srcOpts = [['typed', 'Typed by operator'], ['list', 'Pick from a list'], ['fixed', 'Fixed text'], ['ose', 'OpenStatsEngine value'], ['logo', 'Team logo (Drive › Graphics › Logos)']];
+      const srcOpts = [['typed', 'Typed by operator'], ['list', 'Pick from a list'], ['fixed', 'Fixed text'], ['ose', 'OpenStatsEngine value'], ['logo', 'Team logo (Graphics Controller, else Drive › Graphics › Logos)'], ['gc', 'Game info (Graphics Controller)'], ['gcowned', 'Filled by Graphics Controller']];
       const rows = g.fields.concat(/* hidden fields are filtered on the control page only */[]).map((f) => {
         let detail = '';
         if (f.source === 'list') detail = select('gfx.field', { key: g.key, name: f.name }, 'list', [['', '— choose list —'], ...listNames], f.list);
         else if (f.source === 'fixed') detail = input('gfx.field', { key: g.key, name: f.name }, 'value', f.fixed, 'placeholder="text" style="width:100%"');
         else if (f.source === 'ose') detail = select('gfx.field', { key: g.key, name: f.name }, 'ose', [['', '— field —'], ...S.ose.fields], f.ose);
+        else if (f.source === 'gc') detail = select('gfx.field', { key: g.key, name: f.name }, 'gc', [['', '— field —'], ...S.gc.fields.map((k) => [k, gcLabel(k)])], f.gc);
+        else if (f.source === 'gcowned') detail = '<span class="tiny muted">vMix UC never writes this field</span>';
         else if (f.source === 'logo') detail = select('gfx.field', { key: g.key, name: f.name }, 'logo', [['home', 'Home team'], ['away', 'Away team']], f.logo || 'home');
         return `<tr class="r"><td class="mono small">${esc(f.name)}<div class="tiny muted">${esc(f.kind)}</div></td>
           <td>${input('gfx.field', { key: g.key, name: f.name }, 'label', f.label, 'style="width:100%"')}</td>
@@ -85,7 +94,7 @@
           <label class="lab">Companion<input value="/console/gfx/${esc(g.id)}/take" readonly></label></div>
         <div class="row">${btn('Hide from the dropdown', 'gfx.config', { key: g.key, hidden: true }, 'b-sm', 'data-confirm="Hide this graphic? You can show it again here."')}</div>
         <h2 style="margin-top:6px">Fields</h2>
-        <div class="small muted">Give each field a friendly label and say where its content comes from. Fixed, OpenStatsEngine and logo fields are filled automatically when you TAKE (and scoreboard values keep updating while it's on air).</div>
+        <div class="small muted">Give each field a friendly label and say where its content comes from. Fixed, OpenStatsEngine, game info and logo fields are filled automatically when you TAKE (and scoreboard and game info values keep updating while it's on air).</div>
         <table class="t"><thead><tr><th>vMix field</th><th>Label for operator</th><th>Shown as</th><th>Filled from</th><th></th></tr></thead><tbody>${rows || '<tr><td class="muted small">This title has no fields.</td></tr>'}</tbody></table>
         <h2 style="margin-top:6px">Stat pop</h2>
         <div class="row wrap"><label class="small"><input type="checkbox" ${g.statpop ? 'checked' : ''} data-cmd="gfx.statpopConfig" data-args="${attr({ key: g.key })}" data-key="enabled"> Use this graphic for stat pops (team + player from OpenStatsEngine + event)</label></div>
@@ -245,6 +254,7 @@ Feedback: /fb/youtube/live · /fb/youtube/viewers · /fb/mix/selected · /fb/mix
       case 'drive': cmd('config.set', { driveRoot: v('drive') }); break;
       case 'recdrive': cmd('config.set', { recordDrive: v('recdrive') }); break;
       case 'ose': cmd('ose.set', { url: v('ose') }); break;
+      case 'gc': cmd('gc.set', { url: v('gc') }); break;
       case 'bridge': cmd('bridge.set', { host: v('bhost'), port: v('bport') }); break;
       case 'yt': { const k = v('ytkey'); cmd('youtube.set', { ...(k && !k.startsWith('•') ? { apiKey: k } : {}), channelId: v('ytchan'), videoId: v('ytvid') }); break; }
       case 'fb': cmd('config.set', { oscFeedbackHost: v('fbhost'), oscFeedbackPort: v('fbport') }); break;

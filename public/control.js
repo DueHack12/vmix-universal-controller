@@ -52,6 +52,13 @@
   const isOpen = (k) => (k in ui.open ? !!ui.open[k] : LAY.open.includes(k));
 
   /* ---------- header + banners ---------- */
+  /** opens the vMix Graphics Controller; 127.0.0.1/localhost become this page's host so it works from other computers */
+  function gcLink() {
+    if (!S.gc || !S.gc.url) return '';
+    let href = S.gc.url;
+    try { const u = new URL(S.gc.url); if (/^(127\.0\.0\.1|localhost)$/.test(u.hostname)) u.hostname = location.hostname; href = u.href; } catch { /* keep as typed */ }
+    return `<a class="pill" href="${esc(href)}" target="_blank" rel="noopener" style="text-decoration:none" title="${S.gc.ok ? 'vMix Graphics Controller' : 'vMix Graphics Controller (not running)'}"><span class="dot" style="background:${S.gc.ok ? 'var(--green)' : 'var(--muted)'}"></span>Graphics</a>`;
+  }
   function renderTop() {
     const t = S.tally || {};
     const conn = S.vmix.connected;
@@ -60,7 +67,7 @@
       <div class="logo">UC</div>
       <div class="grow ellipsis" style="font-weight:700">${esc(S.show.name)}</div>
       <span class="pill"><span class="dot" style="background:${conn ? 'var(--green)' : 'var(--red)'}"></span>vMix ${conn ? esc(S.vmix.version || '') : 'offline'}</span>
-      <a class="pill" href="/master" style="text-decoration:none">⚙ Master</a><button class="pill" data-ui="resetView" title="Back to the show's default open/closed sections">Reset view</button>
+      ${gcLink()}<a class="pill" href="/master" style="text-decoration:none">⚙ Master</a><button class="pill" data-ui="resetView" title="Back to the show's default open/closed sections">Reset view</button>
       <a class="pill" href="/control?layout=${layout === 'vertical' ? 'horizontal' : 'vertical'}" style="text-decoration:none">${layout === 'vertical' ? '⇆ Horizontal' : '⇅ Vertical'}</a>
       <span class="${t.streaming ? 'tag-live' : 'tag-off'}">${t.streaming ? '● LIVE' : 'OFF AIR'}</span>
       ${rec}
@@ -132,7 +139,7 @@
     const fields = g ? g.fields.filter((f) => f.mode !== 'hidden' && !spFields.includes(f.name)).map((f) => {
       const a = attr({ id: g.id, field: f.name });
       if (f.mode === 'locked' || (f.source !== 'typed' && f.source !== 'list')) {
-        const note = { fixed: 'fixed', ose: 'from OpenStatsEngine', logo: 'team logo' }[f.source] || 'locked';
+        const note = { fixed: 'fixed', ose: 'from OpenStatsEngine', logo: 'team logo', gc: 'game info', gcowned: 'from Graphics Controller' }[f.source] || 'locked';
         return `<label class="field">${esc(f.label)}<span class="row"><input value="${esc(f.value)}" disabled class="grow"><span class="tiny muted">${note}</span></span></label>`;
       }
       if (f.source === 'list') {

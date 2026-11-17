@@ -4,7 +4,8 @@
  * and a tally read back from vMix's own overlay state (not assumed from button presses).
  *
  * Per graphic (show.graphics[]): name, group, overlay, hidden, autoOut (s),
- *   fields: [{ name, label, mode: edit|locked|hidden, source: typed|list|fixed|ose|logo, list, value, ose, logo: home|away }]
+ *   fields: [{ name, label, mode: edit|locked|hidden, source: typed|list|fixed|ose|logo|gc|gcowned, list, value, ose, gc, logo: home|away }]
+ *   gc = "Game info" from the Graphics Controller, written by vMix UC; gcowned = the Graphics Controller writes it, vMix UC never does
  *   statpop: { enabled, lineField, logoField, colorField, format }
  * show.lists: { "Announcers": ["Jane Doe '26", ...] }
  */
@@ -75,7 +76,9 @@ module.exports = (engine) => {
 
   /** Logo file in <Drive>\Graphics\Logos matching a team (abbrev / short / name). */
   function logoFor(side) {
-    const t = engine.features.ose && engine.features.ose.team(side);
+    const gt = engine.features.gc && engine.features.gc.team(side);
+    if (gt && gt.logo) return gt.logo;   // the Graphics Controller's own logo file (a Drive path vMix can load)
+    const t = (engine.features.ose && engine.features.ose.team(side)) || gt;
     const dir = engine.driveDir('Graphics', 'Logos');
     let files = []; try { files = fs.readdirSync(dir).filter((f) => /\.(png|jpe?g|gif|svg|webp)$/i.test(f)); } catch { return ''; }
     const names = t ? [t.abbrev, t.short, t.name].filter(Boolean).map((x) => x.toLowerCase()) : [];
@@ -86,7 +89,8 @@ module.exports = (engine) => {
     if (f.source === 'fixed') return f.value ?? '';
     if (f.source === 'ose') return engine.features.ose ? String(engine.features.ose.value(f.ose)) : '';
     if (f.source === 'logo') return logoFor(f.logo === 'away' ? 'away' : 'home');
-    return null; // typed / list: whatever the operator set
+    if (f.source === 'gc') return engine.features.gc ? engine.features.gc.value(f.gc) : '';
+    return null; // typed / list: whatever the operator set; gcowned: the Graphics Controller writes it // typed / list: whatever the operator set
   }
   async function setField(g, fieldName, value) {
     const f = g.input.fields.find((x) => x.name === fieldName || fieldLabel(x.name) === fieldName);
@@ -157,7 +161,7 @@ module.exports = (engine) => {
     line = line.replace(/\s+–\s*$/, '').replace(/\s{2,}/g, ' ').trim();
     if (sp.lineField) await setField(g, sp.lineField, line);
     if (sp.logoField) { const l = logoFor(side); if (l) await setField(g, sp.logoField, l); }
-    if (sp.colorField && engine.features.ose) { const t = engine.features.ose.team(side); if (t && t.color) await setField(g, sp.colorField, t.color); }
+    if (sp.colorField) { const t = (engine.features.ose && engine.features.ose.team(side)) || (engine.features.gc && engine.features.gc.team(side)); if (t && t.color) await setField(g, sp.colorField, t.color); }
     if (doTake) { pending = { key: g.key, want: 'on', at: Date.now() }; await engine.fn('OverlayInput' + g.overlay + 'In', { Input: g.key }); }
     return { ok: true, line };
   });
@@ -182,7 +186,7 @@ module.exports = (engine) => {
         if (on) { if (!since[g.key]) since[g.key] = now; } else delete since[g.key];
         if (on && g.cfg.autoOut && since[g.key] && now - since[g.key] > g.cfg.autoOut * 1000 && !(pending && pending.key === g.key)) await out(g.key);
         if (on) for (const fc of g.cfg.fields || []) {   // live scoreboard values while on air
-          if (fc.source !== 'ose') continue;
+          if (fc.source !== 'ose' && fc.source !== 'gc') continue;
           const v = sourceValue(fc); const k = g.key + '|' + fc.name;
           if (v !== lastOse[k]) { lastOse[k] = v; await setField(g, fc.name, v); }
         }
@@ -218,7 +222,7 @@ module.exports = (engine) => {
             fields: g.input.fields.map((f) => {
               const c = fieldCfg(g, f.name);
               const source = c.source || 'typed';
-              return { name: f.name, kind: f.kind, value: f.value, label: c.label || fieldLabel(f.name), mode: c.mode || (source === 'typed' || source === 'list' ? 'edit' : 'locked'), source, list: c.list || '', fixed: c.value || '', ose: c.ose || '', logo: c.logo || '' };
+              return { name: f.name, kind: f.kind, value: f.value, label: c.label || fieldLabel(f.name), mode: c.mode || (source === 'typed' || source === 'list' ? 'edit' : 'locked'), source, list: c.list || '', fixed: c.value || '', ose: c.ose || '', gc: c.gc || '', logo: c.logo || '' };
             }),
           };
         }),

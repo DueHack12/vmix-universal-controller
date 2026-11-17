@@ -47,6 +47,7 @@
       ['Mixer', s.mixer.channels.length + ' channels', s.mixer.channels.length > 0, false, 'mixer'],
       ['Music & videos', s.music.playlists.length + ' playlists · ' + s.videos.folders.length + ' video folders', s.music.playlists.length > 0 && s.videos.folders.length > 0, s.music.playlists.length > 0, 'music'],
       ['Ads', s.ads.library.length + ' ads · ' + s.ads.breaks.length + ' break playlists', s.ads.library.length > 0, false, 'ads'],
+      ['Graphics Controller', s.gc.url ? (s.gc.ok ? ([s.gc.game && s.gc.game.visitor.name, s.gc.game && s.gc.game.home.name].filter(Boolean).join(' at ') || 'connected') : 'not running') : 'off (optional)', s.gc.ok, !s.gc.ok, 'setup'],
       ['OpenStatsEngine', s.ose.url ? (s.ose.ok ? 'connected' : 'not reachable') : 'not set (optional)', s.ose.ok, !s.ose.url, 'setup'],
       ['Companion', s.config.oscFeedback.host ? 'feedback to ' + s.config.oscFeedback.host : 'OSC on UDP ' + s.config.oscPort + ' (feedback not set)', !!s.config.oscFeedback.host, true, 'companion'],
     ];

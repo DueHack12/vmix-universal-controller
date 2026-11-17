@@ -45,18 +45,21 @@ GET http://<pc>:3000/api/game        → JSON, no auth on the local network
 
 Any field may be missing or `null`. vMix UC must cope with that.
 
-**vMix UC does** (planned):
-- In Master › Setup, add a **Graphics Controller address** (default `http://127.0.0.1:3000`), with a status light on the start-page checklist.
+**vMix UC does** (built in vMix UC; see `src/features/gc.js`, tested against `test/mock-gc.js`):
+- Master › Setup › 4 has the **Graphics Controller address** (default `http://127.0.0.1:3000`, blank = off) and a "Follow its sport" switch. The start-page checklist shows whether it's connected.
 - Poll `/api/game` every 5 s (and only when the address is set).
 - Use the data:
   - Set the show's sport, which picks the stat-pop event buttons.
-  - Add a field source **"Game info"** (home name, visitor logo, etc.) for fields vMix UC fills itself.
-  - Use team names and colours on stat pops and remotes.
+  - Field source **"Game info (Graphics Controller)"** (home name, visitor record, etc.): vMix UC writes it on TAKE and keeps it updated while on air.
+  - Field source **"Filled by Graphics Controller"**: shown locked, and vMix UC never writes it.
+  - **Team logo** fields use the Graphics Controller's `logo` path first, then fall back to Drive › Graphics › Logos.
+  - Team colours on stat pops when OpenStatsEngine has none.
+  - Accepts small differences: `away` for `visitor`, `abbrev` for `abbr`, `primary` for `color`.
 - If the Graphics Controller isn't running, show "not connected" and keep working with the last values.
 
-### Level 3: buttons both ways (to build)
-- vMix UC's top bar gets a **Graphics** button that opens the Graphics Controller (`:3000`).
-- The Graphics Controller gets a **Control** button that opens vMix UC (`:8790`).
+### Level 3: buttons both ways
+- vMix UC's top bar has a **Graphics** button (green light when connected) that opens the Graphics Controller. Built.
+- To build in the Graphics Controller: a **Control** button that opens vMix UC (`:8790`).
 - Companion: vMix UC's OSC/HTTP commands stay the way to run things from a Stream Deck. If Graphics Controller actions are needed on a deck (e.g. "UPDATE GOOGLE SHEET"), it should expose them as simple HTTP `POST`s, and they get listed on vMix UC's Companion page.
 
 ## 3. Other apps on the same PC

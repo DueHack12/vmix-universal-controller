@@ -200,3 +200,10 @@ test('mixer fader dB and scale conversion', () => {
   e.store.config.vmix.volumeScale = 'fader';
   assert.equal(faderOf(6.25), 6.25);
 });
+
+test('Graphics Controller game info: normalize accepts small differences', () => {
+  const { normalize } = require('../src/features/gc');
+  const g = normalize({ sport: 'Soccer', home: { name: 'Prep', abbrev: 'FP', primary: '#C8102E' }, away: { name: 'Hand' } });
+  assert.equal(g.home.abbr, 'FP'); assert.equal(g.home.color, '#C8102E'); assert.equal(g.visitor.name, 'Hand'); assert.equal(g.gender, '');
+  assert.equal(normalize(null), null);
+});

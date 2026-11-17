@@ -288,6 +288,37 @@ test('mixer cough goes to NDI Audio Bridge over OSC', async () => {
   sock.close();
 });
 
+test('Graphics Controller: game info, sport follow, field sources, never writes Graphics Controller fields', async () => {
+  const gcSrv = require('./mock-gc').createServer(); await new Promise((r) => gcSrv.listen(0, r));
+  await engine.run('gc.set', { url: 'http://127.0.0.1:' + gcSrv.address().port });
+  assert.ok(await until(() => engine.state().gc.ok), 'connected');
+  assert.equal(engine.state().gc.game.home.name, 'Fairfield Prep');
+  assert.equal(engine.show.sport, 'Basketball', 'follows the sport');
+  const g = engine.state().graphics.items.find((x) => x.id === 'breakboard');
+  await engine.run('gfx.field', { key: g.key, name: 'TopText.Text', source: 'gc', gc: 'visitor.name' });
+  await engine.run('gfx.set', { id: 'breakboard', field: 'Time.Text', value: 'set by GC' });
+  await engine.run('gfx.field', { key: g.key, name: 'Time.Text', source: 'gcowned' });
+  await engine.run('gfx.take', { id: 'breakboard' });
+  let f = Object.fromEntries(inputBy('Breakboard.gtzip').fields.map((x) => [x.name, x.value]));
+  assert.equal(f['TopText.Text'], 'Hand');
+  assert.equal(f['Time.Text'], 'set by GC', 'gcowned field untouched');
+  assert.equal(engine.state().graphics.items.find((x) => x.id === 'breakboard').fields.find((x) => x.name === 'Time.Text').mode, 'locked');
+  // a change in the Graphics Controller reaches the field while it's on air
+  gcSrv.game.visitor.name = 'Notre Dame';
+  await engine.run('gc.refresh');
+  assert.ok(await until(() => Object.fromEntries(inputBy('Breakboard.gtzip').fields.map((x) => [x.name, x.value]))['TopText.Text'] === 'Notre Dame'), 'live update');
+  await engine.run('gfx.out', { id: 'breakboard' });
+  // keeps the last values when the Graphics Controller stops
+  gcSrv.closeAllConnections(); await new Promise((r) => gcSrv.close(r));
+  await engine.run('gc.refresh');
+  assert.equal(engine.state().gc.ok, false);
+  assert.equal(engine.state().gc.game.visitor.name, 'Notre Dame');
+  await engine.run('gfx.field', { key: g.key, name: 'TopText.Text', source: 'typed' });
+  await engine.run('gfx.field', { key: g.key, name: 'Time.Text', source: 'typed' });
+  await engine.run('gc.set', { url: '' });
+  assert.equal(engine.state().gc.game, null);
+});
+
 test('settings: layout, health blocks, ad folders, shows', async () => {
   await engine.run('layout.set', { layout: 'vertical', order: ['mix', 'gfx', 'video', 'ads', 'music', 'stream'], hidden: ['stream'], open: ['gfx'] });
   assert.deepEqual(engine.state().layout.vertical.hidden, ['stream']);
