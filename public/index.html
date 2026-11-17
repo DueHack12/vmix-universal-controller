@@ -20,10 +20,10 @@
       <h2>Set up · <span id="cl-show"></span></h2>
       <div id="checklist" class="col"></div>
       <h2 style="margin-top:8px">Open</h2>
-      <a class="pill" style="text-decoration:none;font-size:15px;padding:12px" href="/control?layout=vertical">▯ Control · vertical (1080×1920 monitor)</a>
-      <a class="pill" style="text-decoration:none;font-size:15px;padding:12px" href="/control?layout=horizontal">▭ Control · horizontal (1920×1080)</a>
-      <a class="pill" style="text-decoration:none;font-size:15px;padding:12px" href="/remote">▤ vMix UC Remotes · iPad / phone</a>
-      <a class="pill" style="text-decoration:none;font-size:15px;padding:12px" href="/master">⚙ Master · settings, Link to vMix, Companion</a>
+      <a class="pill" style="text-decoration:none;font-size:14px;padding:12px;font-family:var(--ui);font-weight:600;color:var(--text);white-space:normal" href="/control?layout=vertical">▯ Control · vertical (1080×1920 monitor)</a>
+      <a class="pill" style="text-decoration:none;font-size:14px;padding:12px;font-family:var(--ui);font-weight:600;color:var(--text);white-space:normal" href="/control?layout=horizontal">▭ Control · horizontal (1920×1080)</a>
+      <a class="pill" style="text-decoration:none;font-size:14px;padding:12px;font-family:var(--ui);font-weight:600;color:var(--text);white-space:normal" href="/remote">▤ vMix UC Remotes · iPad / phone</a>
+      <a class="pill" style="text-decoration:none;font-size:14px;padding:12px;font-family:var(--ui);font-weight:600;color:var(--text);white-space:normal" href="/master">⚙ Master · settings, Link to vMix, Companion</a>
       <div id="net" class="small muted"></div>
     </div>
   </div>
@@ -34,11 +34,11 @@
   BC.onState((s) => {
     if (!s) return;
     document.getElementById('ver').textContent = s.app ? 'version ' + s.app.version : '';
-    document.getElementById('vmix').innerHTML = `<span class="dot" style="background:${s.vmix.connected ? '#3FB950' : '#FF6B6B'}"></span>${s.vmix.connected ? 'vMix connected · ' + esc(s.vmix.edition + ' ' + s.vmix.version) : 'vMix not found at ' + esc(s.vmix.host + ':' + s.vmix.port)}`;
-    BC.patch(document.getElementById('shows'), s.show.list.map((n) => `<div class="row card"><b class="grow" style="font-size:16px">${esc(n)}</b>${n === s.show.name ? '<span class="ok small" style="font-weight:700">● loaded</span>' : `<button data-cmd="show.load" data-args='${esc(JSON.stringify({ name: n }))}'>Load</button>`}<a class="pill" href="/control?layout=vertical" style="text-decoration:none;background:var(--red);border-color:var(--red);color:#fff;font-weight:800" ${n === s.show.name ? '' : 'hidden'}>RUN ▶</a></div>`).join(''));
+    document.getElementById('vmix').innerHTML = `<span class="dot" style="background:${s.vmix.connected ? 'var(--green)' : 'var(--red)'}"></span>${s.vmix.connected ? 'vMix connected · ' + esc(s.vmix.edition + ' ' + s.vmix.version) : 'vMix not found at ' + esc(s.vmix.host + ':' + s.vmix.port)}`;
+    BC.patch(document.getElementById('shows'), s.show.list.map((n) => `<div class="row card"><b class="grow" style="font-size:16px">${esc(n)}</b>${n === s.show.name ? '<span class="ok small" style="font-weight:700">● loaded</span>' : `<button data-cmd="show.load" data-args='${esc(JSON.stringify({ name: n }))}'>Load</button>`}<a class="pill" href="/control?layout=vertical" style="text-decoration:none;background:var(--key-primary);border-color:rgba(0,0,0,.45);color:#fff;font-weight:700;font-family:var(--ui)" ${n === s.show.name ? '' : 'hidden'}>RUN ▶</a></div>`).join(''));
     const cf = document.getElementById('copyFrom');
     if (cf._n !== s.show.list.join()) { cf._n = s.show.list.join(); cf.innerHTML = '<option value="">blank</option>' + s.show.list.map((n) => `<option value="${esc(n)}">copy settings from ${esc(n)}</option>`).join(''); }
-    const st = (ok, warn) => ok ? ['✓', '#3FB950'] : warn ? ['!', '#E3B341'] : ['•', '#9AA4B2'];
+    const st = (ok, warn) => ok ? ['✓', 'var(--green)'] : warn ? ['!', 'var(--amber)'] : ['•', 'var(--muted)'];
     const jobsOk = s.links.jobs.filter((j) => j.status === 'ok' || j.status === 'guess').length;
     const steps = [
       ['Link vMix', s.vmix.connected ? jobsOk + ' of ' + s.links.jobs.length + ' jobs linked' : 'vMix not connected', s.vmix.connected && jobsOk === s.links.jobs.length, s.vmix.connected, 'setup'],

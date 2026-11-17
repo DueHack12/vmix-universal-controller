@@ -59,7 +59,7 @@
     patch(document.getElementById('top'), `
       <div class="logo">UC</div>
       <div class="grow ellipsis" style="font-weight:700">${esc(S.show.name)}</div>
-      <span class="pill"><span class="dot" style="background:${conn ? '#3FB950' : '#FF6B6B'}"></span>vMix ${conn ? esc(S.vmix.version || '') : 'offline'}</span>
+      <span class="pill"><span class="dot" style="background:${conn ? 'var(--green)' : 'var(--red)'}"></span>vMix ${conn ? esc(S.vmix.version || '') : 'offline'}</span>
       <a class="pill" href="/master" style="text-decoration:none">⚙ Master</a><button class="pill" data-ui="resetView" title="Back to the show's default open/closed sections">Reset view</button>
       <a class="pill" href="/control?layout=${layout === 'vertical' ? 'horizontal' : 'vertical'}" style="text-decoration:none">${layout === 'vertical' ? '⇆ Horizontal' : '⇅ Vertical'}</a>
       <span class="${t.streaming ? 'tag-live' : 'tag-off'}">${t.streaming ? '● LIVE' : 'OFF AIR'}</span>
@@ -68,7 +68,7 @@
   }
   function renderBanners() {
     const out = [];
-    if (S.ads.phase === 'count') out.push(`<div class="banner count" role="status"><span style="font-size:18px;letter-spacing:1px">AD BREAK IN</span><span class="n">${S.ads.count}</span><span class="small">music is fading · ads go to Preview at 0</span><span class="grow"></span>${btn('CANCEL', 'ads.cancel', {}, '', 'style="background:transparent;border:2px solid #111827;color:#111827"')}</div>`);
+    if (S.ads.phase === 'count') out.push(`<div class="banner count" role="status"><span style="font-size:18px;letter-spacing:1px">AD BREAK IN</span><span class="n">${S.ads.count}</span><span class="small">music is fading · ads go to Preview at 0</span><span class="grow"></span>${btn('CANCEL', 'ads.cancel', {}, '', '')}</div>`);
     if (!S.vmix.connected) out.push(`<div class="banner bad" role="alert">⚠ vMix NOT CONNECTED: buttons won't do anything until it's back <span class="grow"></span><span class="small" style="font-weight:600">${esc(S.vmix.host + ':' + S.vmix.port)} · ${esc(S.vmix.error || '')}</span></div>`);
     if (S.graphics.warn) out.push(`<div class="banner warn">⚠ ${esc(S.graphics.warn)}</div>`);
     patch(document.getElementById('banners'), out.join(''));
@@ -98,7 +98,7 @@
     if (!isOpen('stream')) return `<div class="sec-body"><div class="bar">${barTitle('stream')}${light}<div class="grow small ellipsis">${short}</div></div></div>`;
     const blocks = new Set(h.blocks || []);
     const tile = (k, v, sub, cls = '') => `<div class="tile"><span class="k">${k}</span><span class="v ${cls}">${v}</span><span class="small muted">${sub}</span></div>`;
-    return head('stream', h.ok ? 'Healthy' : h.alerts.join(' · '), h.ok ? '#56D364' : '#FF9C9C') + `<div class="sec-body">
+    return head('stream', h.ok ? 'Healthy' : h.alerts.join(' · '), h.ok ? 'var(--green)' : 'var(--red-text)') + `<div class="sec-body">
       <div class="tiles">${[
         ['vmix', tile('VMIX', S.vmix.connected ? 'CONNECTED' : 'OFFLINE', esc((S.vmix.edition || '') + ' ' + (S.vmix.version || '')), S.vmix.connected ? 'ok' : 'bad')],
         ['stream', tile('STREAM', h.streaming ? 'LIVE' : 'OFF', h.streaming ? hold('STOP STREAM', 'stream.toggle', {}, 'b-sm b-red-soft') : hold('START STREAM', 'stream.toggle', {}, 'b-sm'), h.streaming ? 'ok' : 'warn')],
@@ -154,7 +154,7 @@
         <div class="row wrap">${(S.graphics.events || []).map((ev) => `<button class="b-sm ${ev === sp.event ? 'b-sel' : ''}" data-ui="spEvent:${esc(ev)}" style="border-radius:999px">${esc(ev)}</button>`).join('')}</div>
         <div class="row"><span class="grow" style="font-weight:700">${esc(line)}</span><button class="b-red" data-ui="spTake:${esc(g.id)}">TAKE STAT POP</button></div></div>`;
     }
-    return head('gfx', on.length ? 'ON AIR: ' + on.map((x) => x.name).join(', ') : 'Nothing on air', on.length ? '#FF9C9C' : '') + `<div class="sec-body">
+    return head('gfx', on.length ? 'ON AIR: ' + on.map((x) => x.name).join(', ') : 'Nothing on air', on.length ? 'var(--red-text)' : '') + `<div class="sec-body">
       <div class="row">${sel}<a class="pill" href="/master#graphics" style="text-decoration:none">⚙ Manage</a></div>
       <div class="small" style="color:${g && g.replaces ? 'var(--amber)' : 'var(--muted)'}">${esc(meta)}</div>
       ${statpop}${fields}
@@ -170,15 +170,15 @@
     const controls = `${btn('CUE NEXT', 'video.next', {}, 'b-green', v.queue.length ? '' : 'disabled')}${btn(v.running ? '❚❚' : '▶', 'video.playpause', {})}${btn('⟲', 'video.restart', {}, '', 'title="Restart"')}`;
     if (!isOpen('video')) return `<div class="sec-body"><div class="bar">${barTitle('video')}<div class="grow col" style="gap:2px">${status}<span class="small muted ellipsis">Next: <b style="color:var(--text)">${esc(nextName)}</b> · ${v.queue.length} queued${v.pendingCue ? ' · waiting to cue ' + esc(v.pendingCue) : ''}</span></div>${controls}</div></div>`;
     const clips = v.clips.map((c) => {
-      const col = c.status === 'playing' || c.status === 'on air' ? 'var(--red)' : c.status === 'cued' ? 'var(--green)' : c.status === 'queued' ? 'var(--blue)' : 'var(--line2)';
-      const bg = c.status === 'playing' || c.status === 'on air' ? 'var(--red)' : c.status === 'cued' ? 'var(--green)' : c.status === 'queued' ? '#2F5FB3' : '#3A4452';
-      return `<div class="card" style="padding:0;border:2px solid ${col};overflow:hidden;display:flex;flex-direction:column">
+      const col = c.status === 'playing' || c.status === 'on air' ? 'rgba(255,59,48,.6)' : c.status === 'cued' ? 'rgba(48,209,88,.55)' : c.status === 'queued' ? 'rgba(10,132,255,.55)' : 'var(--line)';
+      const bg = c.status === 'playing' || c.status === 'on air' ? 'var(--red)' : c.status === 'cued' ? 'var(--green)' : c.status === 'queued' ? 'var(--accent)' : 'rgba(0,0,0,.55)';
+      return `<div class="card" style="padding:0;border:1px solid ${col};overflow:hidden;display:flex;flex-direction:column">
         <div class="thumb" style="${c.thumb ? `background-image:url('${esc(c.thumb)}')` : ''}"><span class="badge" style="background:${bg}">${esc(c.status.toUpperCase())}</span><span class="dur">${c.seconds ? mmss(c.seconds) : '?'}</span></div>
         <div class="clip-name ellipsis" title="${esc(c.name)}">${esc(c.name)}</div>
         <div class="row" style="padding:0 6px 6px;gap:4px">${btn('+ Queue', 'video.queue', { path: c.path }, 'b-sm grow')}${btn('Cue', 'video.cue', { path: c.path }, 'b-sm b-green grow')}</div></div>`;
     }).join('');
     const q = v.queue.map((x, i) => `<div class="qrow" style="background:${i === 0 ? 'var(--blue-soft)' : 'transparent'}"><span class="mono muted">${i + 1}</span><span class="ellipsis">${esc(x.name)}${x.folder !== v.folder ? ` <span class="tiny muted">· ${esc(x.folder)}</span>` : ''}</span><span class="mono muted">${x.seconds ? mmss(x.seconds) : ''}</span>${btn('✕', 'video.unqueue', { index: i }, 'b-sm', 'aria-label="Remove from queue"')}</div>`).join('') || '<span class="small muted">Queue is empty. Use “+ Queue” on a clip.</span>';
-    return head('video', v.now ? (v.running ? 'Playing: ' : 'Cued: ') + v.now + ' · ' + mmss(v.remaining) + ' left · ' + v.queue.length + ' queued' : v.queue.length + ' queued', v.running ? '#FF9C9C' : '') + `<div class="sec-body">
+    return head('video', v.now ? (v.running ? 'Playing: ' : 'Cued: ') + v.now + ' · ' + mmss(v.remaining) + ' left · ' + v.queue.length + ' queued' : v.queue.length + ' queued', v.running ? 'var(--red-text)' : '') + `<div class="sec-body">
       <div class="row"><span class="small muted">Folder</span><select class="grow" data-cmd="video.folder" data-key="name">${v.folders.map((f) => `<option ${f === v.folder ? 'selected' : ''}>${esc(f)}</option>`).join('') || '<option>No folders in Videos</option>'}</select>
         <label class="pill" style="cursor:pointer">⇪ Upload<input type="file" accept="video/*" multiple class="hide" data-upload></label>${btn('⟳', 'video.rescan', {}, 'b-sm', 'title="Rescan folder"')}</div>
       ${v.autoNextWarn ? '<div class="banner warn note small" role="alert">⚠ vMix moved to the next clip by itself. In vMix, right-click the VIDEOS input › Edit Items and turn OFF <b>Auto Next</b>.</div>' : ''}
@@ -202,7 +202,7 @@
     else if (a.phase === 'cued') barBody = `<div class="grow col" style="gap:2px"><b style="color:var(--orange-text)">ADS IN PREVIEW · ${esc(bname)}</b><span class="small muted">Waiting for the director to take it. They start playing as soon as it's on Program.</span></div>${btn('BACK TO GAME', 'ads.back', {}, 'b-green')}`;
     else if ((a.phase === 'break' || a.phase === 'done') && a.timer) {
       const t = a.timer;
-      barBody = `<div class="grow col" style="gap:6px"><b style="color:#F2CC60">${a.phase === 'done' ? '✓ BREAK DONE' : '▶ AD ' + t.index + ' OF ' + t.count + ' · ' + esc(t.name)}</b>
+      barBody = `<div class="grow col" style="gap:6px"><b style="color:var(--amber)">${a.phase === 'done' ? '✓ BREAK DONE' : '▶ AD ' + t.index + ' OF ' + t.count + ' · ' + esc(t.name)}</b>
         <div class="segs">${t.segments.map((f) => `<span class="seg"><span style="width:${Math.round(f * 100)}%"></span></span>`).join('')}</div>
         <span class="small">${a.phase === 'done' ? 'Press BACK TO GAME' : 'Next: <b>' + esc(t.next || 'back to game') + '</b>'}</span></div>
         <div class="row" style="text-align:right;gap:14px"><div><div class="tiny muted" style="font-weight:800;letter-spacing:1px">THIS AD</div><div class="timer-big">${mmss(t.adLeft)}</div></div>
@@ -214,13 +214,13 @@
     const chips = a.breaks.map((x) => `<span class="chipgrp ${x.id === a.selected ? 'sel' : ''}"><button data-cmd="ads.select" data-args="${attr({ id: x.id })}">${esc(x.name)} · ${mmss(x.target)}${x.played ? ' ✓' : ''}</button><button data-cmd="ads.removeBreak" data-args="${attr({ id: x.id })}" data-confirm="Remove the ${esc(x.name)} break playlist? (Ad videos stay on the Drive.)" aria-label="Remove ${esc(x.name)}" style="color:var(--muted);border-left:1px solid var(--line2)">✕</button></span>`).join('');
     const lens = [30, 60, 120, 180, 300].map((s) => btn(s < 60 ? s + 's' : s / 60 + 'm', 'ads.target', { id: a.selected, seconds: s }, 'b-sm ' + (b && b.target === s ? 'b-sel' : ''))).join('');
     const pct = b && b.target ? Math.min(100, Math.round((b.total / b.target) * 100)) : 0;
-    const rows = a.items.map((i) => `<div class="adrow ${i.state}"><span class="mono muted">${i.index + 1}</span><span class="ellipsis"><b class="tiny" style="color:${i.state === 'now' ? 'var(--orange-text)' : i.state === 'done' ? '#3FB950' : 'var(--blue-text)'}">${{ now: '▶ NOW', next: 'NEXT', done: '✓', queued: '' }[i.state]}</b> ${esc(i.name)}</span>
-      <span class="badge" style="background:${i.kind === 'sponsor' ? '#3A2E10' : '#232A35'};color:${i.kind === 'sponsor' ? '#F2CC60' : '#C9D1DC'}">${esc(i.folder)}</span>
+    const rows = a.items.map((i) => `<div class="adrow ${i.state}"><span class="mono muted">${i.index + 1}</span><span class="ellipsis"><b class="tiny" style="color:${i.state === 'now' ? 'var(--orange-text)' : i.state === 'done' ? 'var(--green)' : 'var(--blue-text)'}">${{ now: '▶ NOW', next: 'NEXT', done: '✓', queued: '' }[i.state]}</b> ${esc(i.name)}</span>
+      <span class="badge" style="background:${i.kind === 'sponsor' ? 'rgba(255,159,10,.12)' : 'rgba(255,255,255,.06)'};color:${i.kind === 'sponsor' ? 'var(--amber)' : 'var(--soft)'}">${esc(i.folder)}</span>
       <span class="mono" style="color:${i.estimated ? 'var(--amber)' : 'var(--soft)'}" title="${i.estimated ? 'estimated length' : ''}">${i.estimated ? '~' : ''}${i.seconds ? mmss(i.seconds) : '?'}</span>
       ${btn('↑', 'ads.moveItem', { id: a.selected, from: i.index, to: Math.max(0, i.index - 1) }, 'b-sm', 'aria-label="Move up"')}${btn('⟳', 'ads.swapItem', { id: a.selected, index: i.index }, 'b-sm', 'title="Swap for another ad"')}${btn('✕', 'ads.removeItem', { id: a.selected, index: i.index }, 'b-sm', 'aria-label="Remove ad"')}</div>`).join('') || '<span class="small muted">Empty. Pick a length or press Reshuffle to fill it.</span>';
     const lib = `<select class="grow" data-cmd="ads.addItem" data-args="${attr({ id: a.selected })}" data-key="path"><option value="">+ Add an ad from the library…</option>${a.library.map((l) => `<option value="${esc(l.path)}">${esc(l.folder + ' › ' + l.name + (l.seconds ? ' (' + mmss(l.seconds) + ')' : ''))}</option>`).join('')}</select>`;
     const missing = a.status.found ? (a.status.missing.length ? 'Missing folders: ' + a.status.missing.join(', ') : '') : 'Ads folder not found: ' + a.status.basePath;
-    return head('ads', bname + ' playlist · ' + mmss(b ? b.total : 0) + (a.phase !== 'idle' ? ' · ' + a.phase.toUpperCase() : ''), '#E3B341') + `<div class="sec-body">
+    return head('ads', bname + ' playlist · ' + mmss(b ? b.total : 0) + (a.phase !== 'idle' ? ' · ' + a.phase.toUpperCase() : ''), 'var(--amber)') + `<div class="sec-body">
       ${a.phase !== 'idle' ? `<div class="boxed bar">${barBody}</div>` : ''}
       <div class="row wrap"><span class="small muted">Break playlist</span>${chips}<button class="b-sm b-dash" data-ui="addBreak">+ New</button>${btn('New game', 'ads.newGame', {}, 'b-sm', 'data-confirm="Start a new game? Every break is marked not played and sponsor rules reset."')}</div>
       <div class="row wrap"><span class="small muted">Length</span>${lens}<button class="b-sm" data-ui="customLen">Custom</button>${btn('⟳ Reshuffle', 'ads.fill', { id: a.selected }, 'b-sm')}</div>
@@ -228,7 +228,7 @@
         <div class="seg" style="height:6px"><span style="width:${pct}%;height:6px"></span></div></div>
       <div class="col" style="gap:5px">${rows}</div>
       <div class="row">${lib}</div>
-      <div class="boxed row small"><span class="dot" style="background:${a.listMatches ? '#3FB950' : '#E3B341'}"></span><span class="grow">vMix ads list: ${a.vmixCount} item(s) · ${a.listMatches ? 'matches ' + esc(bname) : 'different from ' + esc(bname) + ' (GO sends it)'}</span>${btn('Send · Replace', 'ads.send', { id: a.selected, mode: 'replace' }, 'b-sm')}${btn('Append', 'ads.send', { id: a.selected, mode: 'append' }, 'b-sm')}</div>
+      <div class="boxed row small"><span class="dot" style="background:${a.listMatches ? 'var(--green)' : 'var(--amber)'}"></span><span class="grow">vMix ads list: ${a.vmixCount} item(s) · ${a.listMatches ? 'matches ' + esc(bname) : 'different from ' + esc(bname) + ' (GO sends it)'}</span>${btn('Send · Replace', 'ads.send', { id: a.selected, mode: 'replace' }, 'b-sm')}${btn('Append', 'ads.send', { id: a.selected, mode: 'append' }, 'b-sm')}</div>
       ${missing ? `<span class="small warn">${esc(missing)}</span>` : ''}
       <div class="row">${btn('GO TO AD BREAK', 'ads.go', {}, 'b-orange b-big grow', a.linked ? '' : 'disabled')}${btn('BACK TO GAME', 'ads.back', {}, 'b-green b-big')}</div>
       <span class="tiny muted">GO counts down ${a.countdown} s (CANCEL stops it), fades the music and cues the ads to Preview. They play when the director takes them. BACK TO GAME stops the ads, fades the music back in and puts <b style="color:var(--text)">${esc(a.gameCam || 'the game camera')}</b> in ${a.backToGame.action === 'cut' ? 'Program' : 'Preview'}.</span>
@@ -253,13 +253,13 @@
     const q = m.queue.map((x, i) => `<div class="qrow" style="grid-template-columns:22px 1fr auto;background:${i === 0 ? 'var(--blue-soft)' : 'transparent'}"><span class="mono muted">${i + 1}</span><span class="ellipsis">${esc(x.name)}</span>${x.local ? btn('✕', 'music.unqueue', { index: i - (m.queue.length - m.queue.filter((y) => y.local).length) }, 'b-sm') : '<span class="tiny muted">in vMix</span>'}</div>`).join('') || '<span class="small muted">Nothing queued. Use “+ Queue” on a song.</span>';
     const pos = m.duration ? Math.round((m.position / m.duration) * 100) : 0;
     const chip = (label, c, args, on) => btn(label, c, args, 'b-sm ' + (on ? 'b-sel' : ''));
-    return head('music', (m.playing ? '▶ PLAYING · ' : '■ STOPPED · ') + (m.now || '') + ' · ' + m.level + '%', m.playing ? '#56D364' : '') + `<div class="sec-body">
+    return head('music', (m.playing ? '▶ PLAYING · ' : '■ STOPPED · ') + (m.now || '') + ' · ' + m.level + '%', m.playing ? 'var(--green)' : '') + `<div class="sec-body">
       <div class="row"><span class="small muted">Playlist</span>${pl}${btn('⟳', 'music.rescan', {}, 'b-sm', 'title="Rescan"')}</div>
       ${m.autoNextWarn ? '<div class="banner warn note small" role="alert">⚠ vMix moved to the next song by itself. In vMix, right-click the MUSIC input › Edit Items and turn OFF <b>Auto Next</b>.</div>' : ''}
       ${m.listPending ? '<div class="small muted">The vMix MUSIC list switches to this playlist when the current song stops (or when you play a song from it).</div>' : ''}
       <div class="music-bar ${m.playing ? 'playing' : ''} col" style="gap:6px"><div class="row small"><b class="${m.playing ? 'playing-text' : 'muted'} grow">${status}</b><span class="mono">-${mmss(m.remaining)}</span></div>
         <div style="font-weight:700;font-size:15px" class="${m.playing ? 'playing-text' : ''}">${esc(m.now || 'Nothing loaded')}</div>
-        <div class="seg" style="height:5px;background:#2C3440"><span style="width:${pos}%;height:5px;background:#E6EAF0"></span></div></div>
+        <div class="seg" style="height:5px;background:var(--well)"><span style="width:${pos}%;height:5px;background:var(--text)"></span></div></div>
       <div class="row wrap small muted">Mode ${chip('Single song', 'music.mode', { value: 'single' }, m.mode === 'single')}${chip('Playlist · back-to-back', 'music.mode', { value: 'playlist' }, m.mode === 'playlist')}
         <span style="margin-left:10px">When a song stops</span>${chip('Reset to start', 'music.after', { value: 'restart' }, m.after === 'restart')}${chip('Cue next track', 'music.after', { value: 'next' }, m.after === 'next')}</div>
       <div class="card col" style="gap:6px"><div class="row small"><b>UP NEXT (${m.queue.length})</b><span class="muted grow">${m.mode === 'playlist' ? 'when a song ends, the next one starts' : 'one song at a time'}</span><button class="b-sm" data-ui="savePlaylist">Save as playlist…</button>${btn('Clear', 'music.clearQueue', {}, 'b-sm')}</div>${q}</div>
@@ -271,26 +271,26 @@
 
   /* ---------- mixer ---------- */
   const STATE_TXT = { live: 'LIVE', mute: 'MUTED · off stream', listen: 'LISTENING · headphones', mutelisten: 'LISTEN ONLY · not live' };
-  const STATE_COL = { live: '#3FB950', mute: '#FF6B6B', listen: '#F2CC60', mutelisten: '#B7CEFF' };
+  const STATE_COL = { live: 'var(--green)', mute: 'var(--red)', listen: 'var(--amber)', mutelisten: 'var(--blue-text)' };
   function renderMix() {
     const X = S.mixer;
     const open = isOpen('mix');
     // only what changes rarely goes in the HTML; meters / faders / levels are updated in place (BC.mixLive)
     const strips = X.channels.map((c, k) => {
       const muted = c.mode === 'mute' || c.mode === 'mutelisten'; const lis = c.mode === 'listen' || c.mode === 'mutelisten';
-      const mc = muted ? '#3A3F48' : '#3FB950';
+      const mc = muted ? 'background:#3A3A40' : '';
       const id = esc(c.id);
       return `<div class="strip ${c.mode}">
         <div class="ellipsis sname" title="${esc(c.source || c.name)}">${esc(c.name)}</div>
-        <div class="st" style="color:${c.missing ? '#FF6B6B' : STATE_COL[c.mode]}">${c.missing ? 'INPUT MISSING' : STATE_TXT[c.mode]}</div>
-        <div class="meters"><div class="meter"><span data-meter-l="${id}" style="background:${mc}"></span></div><div class="meter"><span data-meter-r="${id}" style="background:${mc}"></span></div>
+        <div class="st" style="color:${c.missing ? 'var(--red)' : STATE_COL[c.mode]}">${c.missing ? 'INPUT MISSING' : STATE_TXT[c.mode]}</div>
+        <div class="meters"><div class="meter"><span data-meter-l="${id}" style="${mc}"></span></div><div class="meter"><span data-meter-r="${id}" style="${mc}"></span></div>
           <input class="vfader" type="range" orient="vertical" min="0" max="100" step="1" data-fader="${id}" aria-label="${esc(c.name)} level"></div>
         <div class="mono tiny muted"><span data-vol="${id}"></span> · <span data-db="${id}"></span></div>
         <div class="mbtns">${c.master ? `<button class="${muted ? 'm-on' : ''}" data-cmd="mix.mute" data-args="${attr({ id: c.id })}" style="grid-column:span 2">MUTE</button>` : `<button class="${muted ? 'm-on' : ''}" data-cmd="mix.mute" data-args="${attr({ id: c.id })}">MUTE</button><button class="${lis ? 'l-on' : ''}" data-cmd="mix.listen" data-args="${attr({ id: c.id })}">LISTEN</button>`}</div>
         ${c.mic ? `<button class="${c.cough ? 'b-red-soft' : ''}" style="font-size:10px;padding:6px 0;width:100%" data-cmd="mix.cough" data-args="${attr({ id: c.id })}" title="NDI Audio Bridge cough (mic ${esc(c.mic)})">${c.cough ? 'COUGHED' : 'COUGH'}</button>` : ''}
         ${open ? `<div class="row" style="gap:3px;width:100%">${btn('◀', 'mix.move', { id: c.id, to: k - 1 }, 'b-sm grow', k ? `aria-label="Move ${esc(c.name)} left"` : 'disabled')}${btn('✕', 'mix.remove', { id: c.id }, 'b-sm', `data-confirm="Remove the ${esc(c.name)} slider?" aria-label="Remove ${esc(c.name)}"`)}${btn('▶', 'mix.move', { id: c.id, to: k + 1 }, 'b-sm grow', k < X.channels.length - 1 ? `aria-label="Move ${esc(c.name)} right"` : 'disabled')}</div>` : ''}</div>`;
     }).join('');
-    const legend = '<span class="tiny muted"><b style="color:#FF6B6B">MUTE</b> off the stream · <b style="color:#E3B341">LISTEN</b> in headphones · both = <b style="color:#8AB4FF">listen, not live</b></span>';
+    const legend = '<span class="tiny muted"><b style="color:var(--red)">MUTE</b> off the stream · <b style="color:var(--amber)">LISTEN</b> in headphones · both = <b style="color:var(--accent)">listen, not live</b></span>';
     const mutedCount = X.channels.filter((c) => c.mode === 'mute' || c.mode === 'mutelisten').length;
     if (!open) return `<div class="sec-body"><div class="bar">${barTitle('mix')}<span class="grow"></span>${legend}</div><div class="strips">${strips}</div></div>`;
     return head('mix', X.channels.length + ' channels · ' + mutedCount + ' muted') + `<div class="sec-body">${legend}<div class="strips big">${strips}</div>

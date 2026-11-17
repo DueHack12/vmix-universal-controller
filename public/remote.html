@@ -5,27 +5,29 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="theme-color" content="#0B0E13">
+<meta name="theme-color" content="#141416">
 <title>vMix UC Remotes</title>
 <link rel="stylesheet" href="/styles.css">
 <style>
   html, body { touch-action: manipulation; -webkit-user-select: none; user-select: none; }
   .r-app { min-height: 100vh; padding: 12px; display: flex; flex-direction: column; gap: 12px; }
   .r-top { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-  .tabs button { font-size: 15px; padding: 12px 18px; border-radius: 12px; }
-  .big { font-size: 18px; font-weight: 800; padding: 22px 0; border-radius: 14px; }
-  .huge { font-size: 22px; font-weight: 800; padding: 28px 0; border-radius: 16px; letter-spacing: 1px; }
+  .tabs { padding: 3px; gap: 3px; border-radius: 10px; background: var(--well); box-shadow: inset 0 1px 3px rgba(0,0,0,.7); border: 1px solid rgba(255,255,255,.06); }
+  .tabs button { font-size: 15px; padding: 10px 16px; border-radius: 7px; }
+  .big { font-size: 17px; font-weight: 600; padding: 22px 0; border-radius: 9px; }
+  .huge { font-size: 20px; font-weight: 700; padding: 28px 0; border-radius: 10px; letter-spacing: .5px; }
   .rgrid { display: grid; gap: 12px; }
   .rstrips { display: grid; grid-template-columns: repeat(auto-fit, minmax(118px, 1fr)); gap: 10px; }
-  .rstrip { border-radius: 16px; border: 2px solid var(--line2); background: var(--panel); padding: 12px 8px; display: flex; flex-direction: column; align-items: center; gap: 8px; }
-  .rstrip.mute { background: #0F1217; border-color: #3A2A2E; } .rstrip.listen { background: var(--amber-soft); border-color: var(--amber); } .rstrip.mutelisten { background: var(--blue-bg); border-color: var(--blue); }
+  .rstrip { border-radius: 12px; border: 1px solid var(--line); background: var(--panel2); box-shadow: inset 0 1px 0 rgba(255,255,255,.05); padding: 12px 8px; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+  .rstrip.mute { background: var(--well); } .rstrip.listen { border-color: rgba(255,159,10,.45); } .rstrip.mutelisten { border-color: rgba(10,132,255,.5); }
   .rfader { -webkit-appearance: slider-vertical; writing-mode: vertical-lr; direction: rtl; width: 44px; height: 260px; }
-  .rmeter { width: 10px; height: 260px; border-radius: 5px; background: var(--input); display: flex; align-items: flex-end; overflow: hidden; } .rmeter > span { width: 10px; display: block; }
-  .rbtn { width: 100%; height: 48px; font-size: 13px; font-weight: 800; border-radius: 10px; border: 0; background: #3A4452; color: #fff; }
+  .rmeter { width: 10px; height: 260px; border-radius: 4px; background: var(--well); box-shadow: var(--well-shadow); display: flex; align-items: flex-end; overflow: hidden; } .rmeter > span { width: 10px; display: block; }
+  .rbtn { width: 100%; height: 48px; font-size: 13px; font-weight: 600; }
   .tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 12px; }
-  .gtile { min-height: 110px; border-radius: 14px; border: 2px solid #F2F4F7; background: #F2F4F7; color: #111827; display: flex; flex-direction: column; justify-content: space-between; align-items: flex-start; padding: 14px; text-align: left; }
-  .gtile.on { background: var(--red); border-color: #FF6B6B; color: #fff; }
-  .countdown { font-family: var(--mono); font-size: 64px; font-weight: 700; line-height: 1; }
+  .gtile { min-height: 110px; border-radius: 9px; color: var(--text); display: flex; flex-direction: column; justify-content: space-between; align-items: flex-start; padding: 14px; text-align: left; }
+  .gtile.on { color: var(--red-text); box-shadow: var(--key-shadow), 0 0 0 1px rgba(255,59,48,.45); }
+  .gtile.on::before { content: ''; position: absolute; left: 50%; bottom: 4px; transform: translateX(-50%); width: 66%; height: 3px; border-radius: 2px; background: var(--red); box-shadow: 0 0 6px var(--red), 0 0 12px rgba(255,59,48,.5); }
+  .countdown { font-size: 64px; font-weight: 600; line-height: 1; }
   @media (max-width: 600px) {
     .rfader, .rmeter, .rstrip .row { display: none !important; }
     .rstrips { grid-template-columns: 1fr; }

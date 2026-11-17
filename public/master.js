@@ -27,10 +27,10 @@
       <td class="small ${ST[j.status][1]}">${S.links.picking === j.id ? '<span style="color:var(--blue-text)">◎ waiting… click the input in vMix so it goes to Preview</span>' : ST[j.status][0]}</td>
       <td style="white-space:nowrap">${S.links.picking === j.id ? (S.links.previewTitle ? btn('Use “' + esc(S.links.previewTitle) + '” (already in Preview)', 'link.usePreview', { job: j.id }, 'b-sm') + ' ' : '') + btn('Cancel', 'link.cancelPick', {}, 'b-sm') : btn('◎ Pick in vMix', 'link.pick', { job: j.id }, 'b-sm b-dash')} ${j.key ? btn('Identify', 'link.identify', { key: j.key }, 'b-sm', 'title="Puts it in vMix Preview (never Program)"') : ''}</td></tr>`).join('');
     return panel('1 · Find vMix', `<div class="muted small">vMix needs one setting: <b>Settings › Web Controller › on</b> (port 8088). On the vMix PC the address is 127.0.0.1.</div>
-        <div class="row wrap"><span class="pill"><span class="dot" style="background:${S.vmix.connected ? '#3FB950' : '#FF6B6B'}"></span>${S.vmix.connected ? 'Connected · vMix ' + esc(S.vmix.edition + ' ' + S.vmix.version) + ' · ' + S.inputs.length + ' inputs' : 'Not connected: ' + esc(S.vmix.error)}</span>
+        <div class="row wrap"><span class="pill"><span class="dot" style="background:${S.vmix.connected ? 'var(--green)' : 'var(--red)'}"></span>${S.vmix.connected ? 'Connected · vMix ' + esc(S.vmix.edition + ' ' + S.vmix.version) + ' · ' + S.inputs.length + ' inputs' : 'Not connected: ' + esc(S.vmix.error)}</span>
         <input id="vhost" style="width:170px" value="${esc(S.vmix.host)}"><input id="vport" style="width:90px" value="${esc(S.vmix.port)}"><button data-act="vmix">Connect</button></div>
         <div class="row wrap"><span class="small muted">Only if you set a password in vMix › Web Controller:</span><input id="vuser" style="width:140px" placeholder="user name" value="${esc(S.vmix.user)}"><input id="vpass" type="password" style="width:140px" placeholder="password" value="${S.vmix.hasPassword ? '••••••••' : ''}"></div>`)
-      + panel('2 · Assign jobs', `<div class="muted small">Matched automatically. Easiest fix: <b>◎ Pick in vMix</b>, then click the input in vMix so it goes to <b style="color:#3FB950">Preview</b>. Links use vMix's permanent input ID, so renaming inputs later is fine.</div>
+      + panel('2 · Assign jobs', `<div class="muted small">Matched automatically. Easiest fix: <b>◎ Pick in vMix</b>, then click the input in vMix so it goes to <b style="color:var(--green)">Preview</b>. Links use vMix's permanent input ID, so renaming inputs later is fine.</div>
         <table class="t"><thead><tr><th>Job</th><th>vMix input</th><th>Status</th><th></th></tr></thead><tbody>${jobs}</tbody></table><div class="row">${btn('⟳ Auto-match again', 'link.auto', {})}</div>`)
       + panel('3 · Drive folders', `<div class="muted small">Read and copy only: nothing on the Drive is ever moved, renamed or deleted.</div>
         <div class="row"><input id="drive" class="grow" value="${esc(S.config.driveRoot)}"><button data-act="drive">Save</button>${btn('Create missing folders', 'drive.makeFolders', {}, '', 'data-confirm="Create any missing vMix Universal Controller folders? Nothing existing is touched."')}</div>
@@ -58,7 +58,7 @@
     if (!items.find((g) => g.key === gsel)) gsel = items[0] ? items[0].key : '';
     const g = items.find((x) => x.key === gsel);
     const listNames = Object.keys(G.lists || {});
-    const left = `<div class="gl">${items.map((x) => `<button data-gsel="${esc(x.key)}" class="${x.key === gsel ? 'b-sel' : ''}"><span class="grow ellipsis">${esc(x.name)}</span><span class="tiny muted">${esc(x.group)} · ${x.overlay}</span>${x.statpop ? '<span class="badge" style="background:#2F5FB3">STAT</span>' : ''}</button>`).join('') || '<span class="small muted">No GT titles in vMix.</span>'}
+    const left = `<div class="gl">${items.map((x) => `<button data-gsel="${esc(x.key)}" class="${x.key === gsel ? 'b-sel' : ''}"><span class="grow ellipsis">${esc(x.name)}</span><span class="tiny muted">${esc(x.group)} · ${x.overlay}</span>${x.statpop ? '<span class="badge" style="background:var(--accent)">STAT</span>' : ''}</button>`).join('') || '<span class="small muted">No GT titles in vMix.</span>'}
       ${G.hiddenItems.map((h) => `<div class="row small muted"><span class="grow">${esc(h.name)} (hidden)</span>${btn('Show', 'gfx.config', { key: h.key, hidden: false }, 'b-sm')}</div>`).join('')}</div>`;
     let right = '<span class="muted">Pick a graphic.</span>';
     if (g) {
@@ -217,7 +217,7 @@ Feedback: /fb/youtube/live · /fb/youtube/viewers · /fb/mix/selected · /fb/mix
     if (!S) return;
     nav();
     $('title').textContent = 'Master · ' + (PAGES.find((p) => p[0] === page) || [])[2] + ' · ' + S.show.name;
-    $('conn').innerHTML = `<span class="dot" style="background:${S.vmix.connected ? '#3FB950' : '#FF6B6B'}"></span>vMix ${S.vmix.connected ? 'connected' : 'offline'}`;
+    $('conn').innerHTML = `<span class="dot" style="background:${S.vmix.connected ? 'var(--green)' : 'var(--red)'}"></span>vMix ${S.vmix.connected ? 'connected' : 'offline'}`;
     patch($('page'), R[page]());
   }
   BC.onState((s) => { if (s) { S = s; render(); } });
