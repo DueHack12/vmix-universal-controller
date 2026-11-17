@@ -1,8 +1,8 @@
 'use strict';
 /**
- * Try the console without vMix: starts the fake vMix (port 18088), builds a demo Drive
+ * Try vMix UC without vMix: starts the fake vMix (port 18088), builds a demo Drive
  * folder (needs ffmpeg for the media; works without it, just with empty folders),
- * and runs the console on port 8791 with its own data folder.
+ * and runs vMix UC on port 8791 with its own data folder.
  *   node scripts/demo.js
  */
 const path = require('path');

@@ -1,7 +1,7 @@
 'use strict';
 /**
  * Builds a small fake "vMix Universal Controller" Drive folder with real media files (needs ffmpeg),
- * for trying the console with test/mock-vmix.js. Never used on the real Drive.
+ * for trying vMix UC with test/mock-vmix.js. Never used on the real Drive.
  *   node scripts/make-demo-drive.js <folder>
  */
 const fs = require('fs');

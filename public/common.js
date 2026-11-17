@@ -23,7 +23,7 @@ window.BC = (() => {
       if (!j.ok && j.error) toast(j.error);
       if (j.note) toast(j.note);
       return j;
-    } catch (e) { toast('Console not reachable: ' + e.message); return { ok: false }; }
+    } catch (e) { toast('vMix UC not reachable: ' + e.message); return { ok: false }; }
   }
 
   /* live state: first message { full }, then { set, merge } with only what changed (see src/statediff.js) */

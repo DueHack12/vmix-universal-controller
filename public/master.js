@@ -77,7 +77,7 @@
       const fieldNames = [['', '— none —'], ...g.fields.map((f) => [f.name, f.name])];
       const sp = g.statpop || {};
       right = `<div class="grid2" style="grid-template-columns:repeat(3,minmax(0,1fr))">
-          <label class="lab">Name in the console${input('gfx.config', { key: g.key }, 'name', g.name)}</label>
+          <label class="lab">Name in vMix UC${input('gfx.config', { key: g.key }, 'name', g.name)}</label>
           <label class="lab">Group${select('gfx.config', { key: g.key }, 'group', ['Lower thirds', 'Full screen', 'Scorebug', 'Other'], g.group)}</label>
           <label class="lab">Overlay channel${select('gfx.config', { key: g.key }, 'overlay', [1, 2, 3, 4], g.overlay)}</label>
           <label class="lab">Auto-out after (s, 0 = never)${input('gfx.config', { key: g.key }, 'autoOut', g.autoOut, 'type="number" min="0"')}</label>

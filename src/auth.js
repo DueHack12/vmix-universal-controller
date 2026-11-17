@@ -67,7 +67,7 @@ function createAuth(store) {
     return m ? decodeURIComponent(m.slice(COOKIE.length + 1)) : '';
   }
 
-  /** may this request use the console? (pin param only for /osc/ GETs from Companion) */
+  /** may this request use vMix UC? (pin param only for /osc/ GETs from Companion) */
   function allowed(req, pinParam) {
     if (!enabled() || isLocal(req)) return true;
     const c = cookie(req);
