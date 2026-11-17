@@ -1,0 +1,71 @@
+# vMix Universal Controller ↔ vMix Graphics Controller
+
+How the two FPGT apps work together. **Keep an identical copy of this file in both repos.** When it changes in one, copy it to the other.
+
+Both apps run on the vMix PC and talk to the same vMix. They stay separate programs: if one crashes on game night, the other keeps running.
+
+## 1. Who does what
+
+| | vMix Graphics Controller | vMix Universal Controller (vMix UC) |
+|---|---|---|
+| Job | **What's in** the graphics | **When** things go on air |
+| Owns | Game setup (sport, home/visitor), teams, logos, colours, records, rankings, standings, brackets, the Google Sheet, browser graphics pages, GT title content | TAKE/OUT and tally, music, ads, videos, audio mixer, stream health, Companion/Stream Deck, iPad/phone remotes |
+| Writes to vMix | Title **content**: the Google Sheet "Live" tab (vMix Data Source) and its browser graphics pages | Overlay **on/off**, list inputs (MUSIC/ADS/VIDEOS), audio, and fields set to "Typed by operator" |
+| Ports | 3000 editor, 3001 graphics pages | 8790 web, 9600 OSC (UDP) |
+| Drive folder (its own; read-only for the other app) | `Prep Sports Broadcasting\vMix Graphics Control\` | `Prep Sports Broadcasting\vMix Universal Controller\` |
+
+### Rules
+1. **One writer per vMix field.** If the Graphics Controller fills a title field (through the sheet or Data Source), vMix UC never writes it. In vMix UC's field linker, set those fields to **"Filled by Graphics Controller"** (shown, locked).
+2. **Switching and overlays belong to vMix UC.** The Graphics Controller's idea list includes a "full vMix control tab", and vMix UC now covers that, so the Graphics Controller shouldn't build its own switching or overlay control.
+3. **Drive:** each app writes only in its own folder and may read the other's. Never move, rename or delete anything on the shared Drive. Only copy in.
+4. **Never get around bot protection** (MaxPreps / CIAC rankings). vMix UC never fetches those sites; it gets that data from the Graphics Controller.
+5. **Same look:** both apps follow the FPGT `DESIGN.md`.
+
+## 2. How they connect
+
+### Level 1: nothing extra (works now)
+Both apps talk to the same vMix. vMix UC reads vMix's state, so its tally shows a graphic as on air no matter which app (or the hardware panel) put it there. The Graphics Controller's 3001 pages can be vMix browser inputs, and vMix UC can TAKE/OUT them like any other overlay.
+
+### Level 2: shared game info (to build)
+The **Graphics Controller provides**:
+
+```
+GET http://<pc>:3000/api/game        → JSON, no auth on the local network
+{
+  "sport": "Basketball",           // matches the Graphics Controller's sport names
+  "gender": "Boys",                // "Boys" | "Girls"
+  "home":    { "name": "Fairfield Prep", "short": "PREP", "abbr": "FP",
+               "logo": "G:\\Shared drives\\...\\prep.png", "logoUrl": "/api/asset?...",
+               "color": "#C8102E", "color2": "#FFFFFF",
+               "record": "12-3", "sccRecord": "8-1", "classRank": "LL #4" },
+  "visitor": { ...same fields... },
+  "updatedAt": "2026-11-17T18:00:00Z"   // changes whenever the game setup changes
+}
+```
+
+Any field may be missing or `null`. vMix UC must cope with that.
+
+**vMix UC does** (planned):
+- In Master › Setup, add a **Graphics Controller address** (default `http://127.0.0.1:3000`), with a status light on the start-page checklist.
+- Poll `/api/game` every 5 s (and only when the address is set).
+- Use the data:
+  - Set the show's sport, which picks the stat-pop event buttons.
+  - Add a field source **"Game info"** (home name, visitor logo, etc.) for fields vMix UC fills itself.
+  - Use team names and colours on stat pops and remotes.
+- If the Graphics Controller isn't running, show "not connected" and keep working with the last values.
+
+### Level 3: buttons both ways (to build)
+- vMix UC's top bar gets a **Graphics** button that opens the Graphics Controller (`:3000`).
+- The Graphics Controller gets a **Control** button that opens vMix UC (`:8790`).
+- Companion: vMix UC's OSC/HTTP commands stay the way to run things from a Stream Deck. If Graphics Controller actions are needed on a deck (e.g. "UPDATE GOOGLE SHEET"), it should expose them as simple HTTP `POST`s, and they get listed on vMix UC's Companion page.
+
+## 3. Other apps on the same PC
+
+| App | Address | Used by |
+|---|---|---|
+| vMix | HTTP 8088 | both |
+| OpenStatsEngine | its own port (`/vmix/live/players.xml`, `roster.xml`) | both (read-only) |
+| NDI Audio Bridge | OSC UDP 9500 | vMix UC (cough/mic) |
+
+## 4. Changing this file
+Any change to the shared parts (the `/api/game` shape, ports, rules) is made in **both** repos at the same time. The chat for each app only changes its own side.
