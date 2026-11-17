@@ -1,6 +1,25 @@
 # vMix Universal Controller ↔ vMix Graphics Controller
 
-How the two FPGT apps work together. **Keep an identical copy of this file in both repos.** When it changes in one, copy it to the other.
+**Version 3 · 2026-11-17** (see the changelog at the end)
+
+> **The copy that counts is on the Drive:**
+> `Prep Sports Broadcasting/vMix Universal Controller/FPGT Shared/INTEGRATION.md`
+> - Mac: `~/Library/CloudStorage/GoogleDrive-<account>/Shared drives/Prep Sports Broadcasting/vMix Universal Controller/FPGT Shared/`
+> - vMix PC: `G:\Shared drives\Prep Sports Broadcasting\vMix Universal Controller\FPGT Shared\`
+> - Cloud chats: Google Drive connector, folder "FPGT Shared".
+>
+> Each repo keeps a copy, but the Drive copy wins.
+>
+> **Rules for any Claude chat working on either app:**
+> 1. **At the start of every task**, read the Drive copy. If its version is newer than your repo's copy, copy it into your repo, then check whether your app needs changes to match.
+> 2. **If you change anything shared** (the `/api/game` shape, ports, who-owns-what, Drive folders):
+>    - edit the Drive copy, raise the version number and add a changelog line saying which app changed and what the other app must do;
+>    - copy the file into your repo;
+>    - tell the user, so they can mention it in the other chat.
+> 3. **If you can't write to the Drive** (e.g. a cloud chat), save your new version next to it as `INTEGRATION (proposed by <app>).md`, or give it to the user. The other chat merges it next time and deletes nothing.
+> 4. Never move, rename or delete anything else on the Drive. `DESIGN.md` in the same folder is the shared look.
+
+How the two FPGT apps work together.
 
 Both apps run on the vMix PC and talk to the same vMix. They stay separate programs: if one crashes on game night, the other keeps running.
 
@@ -70,5 +89,7 @@ Any field may be missing or `null`. vMix UC must cope with that.
 | OpenStatsEngine | its own port (`/vmix/live/players.xml`, `roster.xml`) | both (read-only) |
 | NDI Audio Bridge | OSC UDP 9500 | vMix UC (cough/mic) |
 
-## 4. Changing this file
-Any change to the shared parts (the `/api/game` shape, ports, rules) is made in **both** repos at the same time. The chat for each app only changes its own side.
+## 4. Changelog
+- **3 · 2026-11-17 · vMix UC:** the shared copy now lives on the Drive (FPGT Shared). vMix UC's side of level 2 is built, plus its Graphics button. **Graphics Controller:** check `/api/game` matches section 2 and add the Control button (level 3).
+- **2 · 2026-11-17 · Graphics Controller:** added `/api/game` (the user reports this is done; vMix UC hasn't seen that version of this file yet, so **merge any differences into this copy**).
+- **1 · 2026-11-17 · vMix UC:** first version.
