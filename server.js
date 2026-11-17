@@ -37,6 +37,7 @@ if (arg('vmix')) { const [h, p] = arg('vmix').split(':'); store.config.vmix = { 
 if (arg('drive')) store.config.driveRoot = arg('drive');
 if (arg('osc')) store.config.oscPort = Number(arg('osc'));
 if (arg('ose')) store.config.oseUrl = arg('ose');
+if (arg('scoreboard')) store.config.scoreboardUrl = arg('scoreboard');
 const engine = new Engine(store);
 const auth = createAuth(store);
 engine.cmd('drive.makeFolders', () => engine.makeFolders());
@@ -106,6 +107,9 @@ function feedback() {
   fb['/fb/youtube/live'] = s.youtube.live ? 1 : 0;
   fb['/fb/youtube/viewers'] = s.youtube.viewers ?? 0;
   fb['/fb/mix/selected'] = s.mixer.selected || '';
+  const sb = (s.scoreboard && s.scoreboard.data) || {};
+  for (const k of ['clock', 'home_score', 'guest_score', 'period_ordinal', 'down_distance', 'play_clock', 'shot_clock']) fb['/fb/scoreboard/' + k] = sb[k] ?? '';
+  fb['/fb/scoreboard/live'] = s.scoreboard && s.scoreboard.live ? 1 : 0;
   const selCh = s.mixer.channels.find((c) => c.name === s.mixer.selected);
   fb['/fb/mix/selected/level'] = selCh ? selCh.volume : 0;
   return fb;

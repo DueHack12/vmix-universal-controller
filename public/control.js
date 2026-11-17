@@ -71,6 +71,27 @@
       ${rec}
       <span class="clock" id="clock"></span>`);
   }
+  /** the live scoreboard from ScoreReader (Master › Setup › 4), so the operator sees what the board says */
+  function renderScoreStrip() {
+    const el = document.getElementById('sbstrip'); const b = S.scoreboard;
+    if (!b || !b.url) { if (el.innerHTML) el.innerHTML = ''; return; }
+    const d = b.data || {};
+    const nm = (side) => d[side + '_abbr'] || d[side + '_name'] || (side === 'home' ? 'HOME' : 'GUEST');
+    const light = b.live ? 'var(--green)' : b.ok ? 'var(--amber)' : 'var(--red)';
+    const why = !b.ok ? 'ScoreReader not reachable' : !b.live ? (b.status ? (b.status.detail || b.status.state || 'no data from the scoreboard') : 'no data from the scoreboard') : (b.status && b.status.source === 'demo' ? 'DEMO data' : 'live');
+    const bits = [];
+    if (d.period_ordinal || d.period) bits.push(`<span class="sb-k">PER</span><b class="mono">${esc(d.period_ordinal || d.period)}</b>`);
+    if (d.clock !== undefined) bits.push(`<span class="sb-k">CLOCK</span><b class="mono" style="color:${d.clock_running === '1' ? 'var(--green)' : 'var(--text)'}">${esc(d.clock || '--:--')}</b>`);
+    if (d.down_distance) bits.push(`<b class="mono">${esc(d.down_distance)}</b>${d.ball_on ? `<span class="sb-k">ON</span><b class="mono">${esc(d.ball_on)}</b>` : ''}`);
+    if (d.play_clock) bits.push(`<span class="sb-k">PLAY</span><b class="mono">${esc(d.play_clock)}</b>`);
+    if (d.shot_clock) bits.push(`<span class="sb-k">SHOT</span><b class="mono">${esc(d.shot_clock)}</b>`);
+    if (d.home_timeouts || d.guest_timeouts) bits.push(`<span class="sb-k">TO</span><b class="mono">${esc(d.home_timeouts || '-')}·${esc(d.guest_timeouts || '-')}</b>`);
+    patch(el, `<div class="sbstrip" title="Live from ScoreReader (${esc(b.url)}) · ${esc(why)}">
+      <span class="dot" style="background:${light}"></span><span class="sb-k">SCOREBOARD</span>
+      ${b.ok ? `<b class="sb-team">${esc(nm('home'))}${d.home_poss === '1' ? ' ◂' : ''}</b><b class="mono sb-score">${esc(d.home_score || '0')}</b><span class="muted">–</span><b class="mono sb-score">${esc(d.guest_score || '0')}</b><b class="sb-team">${d.guest_poss === '1' ? '▸ ' : ''}${esc(nm('guest'))}</b>${bits.map((x) => `<span class="sb-bit">${x}</span>`).join('')}` : `<span class="small muted">${esc(why)}: ${esc(b.error)}</span>`}
+      <span class="grow"></span><span class="tiny ${b.live ? 'ok' : 'muted'}">${esc(why)}</span><a class="pill" href="${esc(BC.gcHref(b.url))}/" target="scorereader" rel="noopener" title="Open ScoreReader's dashboard">ScoreReader ↗</a></div>`);
+  }
+
   function renderBanners() {
     const out = [];
     if (S.ads.phase === 'count') out.push(`<div class="banner count" role="status"><span style="font-size:18px;letter-spacing:1px">AD BREAK IN</span><span class="n">${S.ads.count}</span><span class="small">music is fading · ads go to Preview at 0</span><span class="grow"></span>${btn('CANCEL', 'ads.cancel', {}, '', '')}</div>`);
@@ -138,7 +159,7 @@
     const fields = g ? g.fields.filter((f) => f.mode !== 'hidden' && !spFields.includes(f.name)).map((f) => {
       const a = attr({ id: g.id, field: f.name });
       if (f.mode === 'locked' || (f.source !== 'typed' && f.source !== 'list')) {
-        const note = { fixed: 'fixed', ose: 'from OpenStatsEngine', logo: 'team logo', gc: 'game info', gcowned: 'from Graphics Controller' }[f.source] || 'locked';
+        const note = { fixed: 'fixed', ose: 'from OpenStatsEngine', logo: 'team logo', gc: 'game info', gcowned: 'from Graphics Controller', sb: 'live scoreboard' }[f.source] || 'locked';
         return `<label class="field">${esc(f.label)}<span class="row"><input value="${esc(f.value)}" disabled class="grow"><span class="tiny muted">${note}</span></span></label>`;
       }
       if (f.source === 'list') {
@@ -310,7 +331,7 @@
     if (!S) return;
     buildCols();
     document.body.classList.toggle('beginner', !!S.config.beginner);
-    renderTop(); renderBanners(); renderMon();
+    renderTop(); renderScoreStrip(); renderBanners(); renderMon();
     for (const k of Object.keys(R)) { const el = document.getElementById('sec-' + k); if (el) patch(el, R[k]()); }
     BC.mixLive(document.getElementById('sec-mix'), S.mixer.channels);
   }

@@ -1,6 +1,6 @@
 # vMix Universal Controller ↔ vMix Graphics Controller
 
-**Version 5 · 2026-11-17** (see the changelog at the end)
+**Version 6 · 2026-11-17** (see the changelog at the end)
 
 > **The copy that counts is on the Drive:**
 > `Prep Sports Broadcasting/vMix Universal Controller/FPGT Shared/INTEGRATION.md`
@@ -85,6 +85,39 @@ Any field may be missing or `null`. vMix UC must cope with that.
   - Accepts small differences: `away` for `visitor`, `abbrev` for `abbr`, `primary` for `color`; `null` = empty.
 - If the Graphics Controller isn't running, show "not connected" and keep working with the last values.
 
+### Level 2b: the title list (vMix UC built; **Graphics Controller to build**)
+So vMix UC can show which of its graphics are Graphics Controller titles, link each one to GC's editor, and lock the fields GC fills, GC serves its title list on the read-only port:
+
+```
+GET http://<GC computer>:3001/api/titles   → JSON, read-only, no auth, CORS open
+{
+  "titles": [
+    {
+      "id": "bk-scorebug",                 // manifest id
+      "name": "BK SCOREBUG",               // manifest name
+      "sport": "Basketball",
+      "group": "Scorebug",                 // manifest group (Scorebug, Intro, Breakboard, Lineup, Announcers, Lower third…)
+      "file": "gt-titles/Basketball/…/BK SCOREBUG.gtzip",
+      "input": "8f3c…",                    // the vMix input key GC linked it to (Broadcast → vMix inputs), or null
+      "owns": ["HOME NAME", "AWAY NAME", "HOME RECORD", "HOME BLOCK", …],   // every text/image/colour GC writes with vMix sync
+                                           //   (not the live fields: scores, clock, period, shot/play clock, timeouts, down & distance)
+      "editUrl": "/#title=bk-scorebug"     // a path on GC's editor (port 3000) that opens this title
+    }
+  ]
+}
+```
+
+- `owns` entries are vMix field names without the suffix (`HOME NAME` means `HOME NAME.Text`, `HOME BLOCK` means `HOME BLOCK.Source`); the full name (`HOME NAME.Text`) also works.
+- **GC's editor opens `/#title=<id>`**: Broadcast page, with that title's detail panel open (and on `hashchange`). That's what vMix UC's "Edit ↗" key links to.
+
+**vMix UC does** (built):
+- Matches each vMix GT input to a GC title: by `input` (GC's own link) first, then by name, with GC's rule (`BK INTRO (Thermal - Normal logo).gtzip` → `BK INTRO`).
+- Shows a **GC** tag and an **Edit ↗** key (control page next to CHECK/TAKE/OUT; Master › Graphics) that opens `http://<GC computer>:3000<editUrl>`. That only works on the computer GC runs on (its editor port is 127.0.0.1 only).
+- Fields in `owns` default to **"Filled by Graphics Controller"** (locked; vMix UC refuses to write them, Companion included) unless set otherwise in vMix UC.
+- Groups from GC: Scorebug → Scorebug (the main scorebug only; flag, timeouts, down box, popup, status → Other, overlay 4, so they don't replace the scorebug), Intro / Breakboard / Lineup → Full screen, the rest → Lower thirds.
+- Lists GC titles for the current sport that aren't in vMix ("In the Graphics Controller, not in vMix").
+- **Until GC serves `/api/titles`:** when GC runs on the same computer, vMix UC reads GC's `/gt/manifest.json` and `/api/gt/state` on port 3000 instead (with live fields left out by name). Remove this fallback once `/api/titles` exists.
+
 ### Level 3: buttons both ways (built)
 - vMix UC's top bar has a **Graphics** button (green light when connected). It opens GC's editor on port 3000 of the same host, which only works on the computer GC runs on.
 - The Graphics Controller's top bar has a **Control ↗** button that opens vMix UC at `http://<vMix PC>:8790` (the vMix PC address from GC's Settings). Built.
@@ -97,8 +130,10 @@ Any field may be missing or `null`. vMix UC must cope with that.
 | vMix | HTTP 8088 | both |
 | OpenStatsEngine | its own port (`/vmix/live/players.xml`, `roster.xml`) | both (read-only) |
 | NDI Audio Bridge | OSC UDP 9500 | vMix UC (cough/mic) |
+| **ScoreReader** (github.com/DueHack12/scorereader) on the scoreboard NUC | HTTP 8765: `/data.obj.json` (flat live fields: `clock`, `home_score`, `guest_score`, `period_ordinal`, `down_distance`, `play_clock`, `shot_clock`, `home_timeouts`…), `/data.json` (vMix Data Source), `/api/state` (is the ScoreBot sending?) | vMix UC (live strip, Master › Setup feed, field source "Scoreboard (ScoreReader), live"); vMix Data Source; OSE over MQTT 1883 |
 
 ## 4. Changelog
+- **6 · 2026-11-17 · vMix UC:** level 2b, the title list. **Graphics Controller must:** serve `GET :3001/api/titles` as above, and open `/#title=<id>` in its editor. vMix UC is built against it and falls back to GC's manifest on the same computer meanwhile. Also: ScoreReader (scoreboard NUC, port 8765) added to section 3; vMix UC reads it.
 - **5 · 2026-11-17 · vMix UC:** matched version 4. Default address is now `http://127.0.0.1:3001`, and an old saved `:3000` is migrated. `fullName` and `mascot` are usable as Game info. `null` is treated as empty. Master › Graphics has an "All fields: Filled by Graphics Controller" button. The Graphics button opens port 3000. Testing on a Mac: `Start FPGT (Mac).command` runs both. **Graphics Controller:** nothing to do. Please copy this text over `INTEGRATION.md`, since vMix UC's cloud chat can't overwrite files on the Drive.
 - **4 · 2026-11-17 · Graphics Controller:** merged GC's side. Section 2 now matches the `/api/game` that was built: it is served on **port 3001** (port 3000 only answers on GC's own computer, and GC runs on a Mac), the extra fields `fullName` and `mascot`, `short` = `abbr` for now, `color2` may be `null`, `logoUrl` only works on GC's computer. Section 1: GC also writes GT title text/images/colours through the vMix API when its vMix sync is on. The Control button is built. **vMix UC must:** change the default Graphics Controller address to `http://<GC computer>:3001`, and treat every GT title field GC syncs as "Filled by Graphics Controller".
 - **3 · 2026-11-17 · vMix UC:** the shared copy now lives on the Drive (FPGT Shared). vMix UC's side of level 2 is built, plus its Graphics button. **Graphics Controller:** check `/api/game` matches section 2 and add the Control button (level 3).

@@ -43,6 +43,9 @@ const gcLabel = (k) => { const [a, b] = k.split('.'); return b ? (a === 'home' ?
       + panel('4 · Your other tools', `<div class="row wrap"><span class="small muted" style="width:160px">vMix Graphics Controller</span><input id="gc" class="grow" placeholder="http://<Graphics Controller computer>:3001 (blank = off)" value="${esc(S.gc.url)}"><button data-act="gc">Save</button>${btn('⟳', 'gc.refresh', {}, 'b-sm')}
           <span class="small ${S.gc.ok ? 'ok' : S.gc.url ? 'bad' : 'muted'}">${S.gc.ok ? '✓ ' + esc(gameLine(S.gc.game) || 'connected') : S.gc.url ? 'not running: ' + esc(S.gc.error) : 'off'}</span></div>
         <div class="row wrap"><span style="width:160px"></span><label class="small"><input type="checkbox" ${S.gc.followSport ? 'checked' : ''} data-cmd="gc.set" data-key="followSport"> Follow its sport (picks the stat pop event buttons)</label></div>
+        <div class="row wrap"><span class="small muted" style="width:160px">Scoreboard (ScoreReader)</span><input id="sb" class="grow" placeholder="IP of the scoreboard NUC, e.g. 192.168.1.50 (port 8765)" value="${esc(S.scoreboard.url)}"><button data-act="sb">Save</button>${btn('⟳', 'scoreboard.refresh', {}, 'b-sm')}
+          <span class="small ${S.scoreboard.live ? 'ok' : S.scoreboard.ok ? 'warn' : S.scoreboard.url ? 'bad' : 'muted'}">${!S.scoreboard.url ? 'off' : !S.scoreboard.ok ? 'not reachable: ' + esc(S.scoreboard.error) : S.scoreboard.live ? '✓ live' + (S.scoreboard.status && S.scoreboard.status.source === 'demo' ? ' (ScoreReader demo)' : '') : 'connected, but no data from the scoreboard' + (S.scoreboard.status && S.scoreboard.status.detail ? ': ' + esc(S.scoreboard.status.detail) : '')}</span>${S.scoreboard.url ? `<a class="pill" href="${esc(S.scoreboard.url)}/" target="scorereader" rel="noopener">Dashboard ↗</a>` : ''}</div>
+        ${S.scoreboard.ok && S.scoreboard.data ? `<div class="sbfeed"><span class="lab" style="grid-column:1/-1">Live feed · field names to use in graphics</span>${Object.entries(S.scoreboard.data).map(([k, v]) => `<div class="sbf"><span class="mono tiny muted">${esc(k)}</span><b class="mono">${esc(v) || '<span class="muted">–</span>'}</b></div>`).join('')}</div>` : ''}
         <div class="row wrap"><span class="small muted" style="width:160px">OpenStatsEngine</span><input id="ose" class="grow" placeholder="http://192.168.50.21:8080" value="${esc(S.ose.url)}"><button data-act="ose">Save</button>${btn('⟳', 'ose.refresh', {}, 'b-sm')}
           <span class="small ${S.ose.ok ? 'ok' : S.ose.url ? 'bad' : 'muted'}">${S.ose.ok ? '✓ ' + esc((S.ose.scoreboard && (S.ose.scoreboard.AwayName + ' at ' + S.ose.scoreboard.HomeName)) || 'connected') + ' · rosters ' + S.ose.rosters.home.length + ' / ' + S.ose.rosters.away.length : S.ose.url ? 'not reachable: ' + esc(S.ose.error) : 'not set'}</span></div>
         <div class="row wrap"><span class="small muted" style="width:160px">NDI Audio Bridge (OSC)</span><input id="bhost" style="width:170px" placeholder="IP of the announcer computer" value="${esc(S.bridge.host)}"><input id="bport" style="width:90px" value="${esc(S.bridge.port)}"><button data-act="bridge">Save</button>
@@ -70,13 +73,14 @@ const gcLabel = (k) => { const [a, b] = k.split('.'); return b ? (a === 'home' ?
       ${G.hiddenItems.map((h) => `<div class="row small muted"><span class="grow">${esc(h.name)} (hidden)</span>${btn('Show', 'gfx.config', { key: h.key, hidden: false }, 'b-sm')}</div>`).join('')}</div>`;
     let right = '<span class="muted">Pick a graphic.</span>';
     if (g) {
-      const srcOpts = [['typed', 'Typed by operator'], ['list', 'Pick from a list'], ['fixed', 'Fixed text'], ['ose', 'OpenStatsEngine value'], ['logo', 'Team logo (Graphics Controller, else Drive › Graphics › Logos)'], ['gc', 'Game info (Graphics Controller)'], ['gcowned', 'Filled by Graphics Controller']];
+      const srcOpts = [['typed', 'Typed by operator'], ['list', 'Pick from a list'], ['fixed', 'Fixed text'], ['ose', 'OpenStatsEngine value'], ['logo', 'Team logo (Graphics Controller, else Drive › Graphics › Logos)'], ['gc', 'Game info (Graphics Controller)'], ['sb', 'Scoreboard (ScoreReader), live'], ['gcowned', 'Filled by Graphics Controller']];
       const rows = g.fields.concat(/* hidden fields are filtered on the control page only */[]).map((f) => {
         let detail = '';
         if (f.source === 'list') detail = select('gfx.field', { key: g.key, name: f.name }, 'list', [['', '— choose list —'], ...listNames], f.list);
         else if (f.source === 'fixed') detail = input('gfx.field', { key: g.key, name: f.name }, 'value', f.fixed, 'placeholder="text" style="width:100%"');
         else if (f.source === 'ose') detail = select('gfx.field', { key: g.key, name: f.name }, 'ose', [['', '— field —'], ...S.ose.fields], f.ose);
         else if (f.source === 'gc') detail = select('gfx.field', { key: g.key, name: f.name }, 'gc', [['', '— field —'], ...S.gc.fields.map((k) => [k, gcLabel(k)])], f.gc);
+        else if (f.source === 'sb') detail = select('gfx.field', { key: g.key, name: f.name }, 'sb', [['', '— field —'], ...S.scoreboard.fields], f.sb);
         else if (f.source === 'gcowned') detail = '<span class="tiny muted">vMix UC never writes this field</span>';
         else if (f.source === 'logo') detail = select('gfx.field', { key: g.key, name: f.name }, 'logo', [['home', 'Home team'], ['away', 'Away team']], f.logo || 'home');
         return `<tr class="r"><td class="mono small">${esc(f.name)}<div class="tiny muted">${esc(f.kind)}</div></td>
@@ -257,6 +261,7 @@ Feedback: /fb/youtube/live · /fb/youtube/viewers · /fb/mix/selected · /fb/mix
       case 'recdrive': cmd('config.set', { recordDrive: v('recdrive') }); break;
       case 'ose': cmd('ose.set', { url: v('ose') }); break;
       case 'gc': cmd('gc.set', { url: v('gc') }); break;
+      case 'sb': cmd('scoreboard.set', { url: v('sb') }); break;
       case 'gcAll': {
         const g = S.graphics.items.find((x) => x.key === a.dataset.key);
         if (g && confirm('Set every field of ' + g.name + ' to "Filled by Graphics Controller"? vMix UC will then never write them.')) {

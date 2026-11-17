@@ -24,6 +24,7 @@ function defaultConfig() {
     oseUrl: '',
     gcUrl: 'http://127.0.0.1:3001', // vMix Graphics Controller's read-only port (INTEGRATION.md); '' = off
     gcFollowSport: true,
+    scoreboardUrl: '',     // ScoreReader on the scoreboard NUC, e.g. http://192.168.1.50:8765; '' = off
     bridge: { host: '', port: 9500 },
     pin: '',               // '' = no PIN; else other devices must enter it (Master › Setup)
     oscAllow: [],          // [] = OSC from anyone; else only these IPs (and this PC)

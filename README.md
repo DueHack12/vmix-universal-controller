@@ -157,6 +157,15 @@ It only reads public data. A whole game uses a small part of the free daily quot
 ## Keyboard (control page)
 `Space` music play/pause · `F` fade out · `N` next song · `T` take selected graphic · `O` out · `C` cue next video · `P` video play/pause.
 
+## Live scoreboard (ScoreReader)
+[ScoreReader](https://github.com/DueHack12/scorereader) runs on the NUC by the scoreboard console. In **Master › Setup › 4**, type the NUC's IP address (port 8765 is added for you) and press Save. Then:
+- the control page shows a **scoreboard strip** under the top bar (score, period, clock, down & distance, play/shot clock, timeouts) with a light: green = live, amber = ScoreReader answers but the scoreboard isn't sending, red = can't reach it;
+- Master › Setup shows the whole **live feed** with each field's name;
+- any graphic field can use **Scoreboard (ScoreReader), live**: it's written on TAKE and kept updated while on air (only for fields vMix's own ScoreReader data source doesn't already fill);
+- Companion gets `/fb/scoreboard/clock`, `home_score`, `guest_score`, `period_ordinal`, `down_distance`, `play_clock`, `shot_clock` and `live`.
+
+The demo uses a fake ScoreReader. To try the real one, run ScoreReader with `--demo` (a pretend football game) and start the demo with `SCOREBOARD_URL=http://127.0.0.1:8765`.
+
 ## Try it without vMix
 Double-click **`Try Demo (no vMix).bat`** (or run `npm run demo`). It starts a fake vMix plus demo media and opens the controller on port 8791. Nothing touches the real vMix or the Drive.
 

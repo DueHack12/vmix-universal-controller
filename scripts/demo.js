@@ -32,8 +32,11 @@ if (gcDir) {
   } catch (e) { console.log('(Graphics Controller titles not loaded: ' + e.message + ')'); }
 }
 mock.createServer().listen(18088, () => console.log('Fake vMix on 127.0.0.1:18088'));
+// scoreboard: a real ScoreReader if SCOREBOARD_URL is set (e.g. the NUC, or ScoreReader's own --demo), else a fake one
+const sbUrl = process.env.SCOREBOARD_URL || 'http://127.0.0.1:18765';
+if (!process.env.SCOREBOARD_URL) require('../test/mock-scorereader').createServer().listen(18765, () => console.log('Fake ScoreReader on 127.0.0.1:18765'));
 ose.createServer().listen(18080, () => console.log('Fake OpenStatsEngine on 127.0.0.1:18080 (set http://127.0.0.1:18080 in Master › Setup)'));
-const child = spawn(process.execPath, [path.join(root, 'server.js'), '--port', '8791', '--data', path.join(root, 'demo-data'), '--vmix', '127.0.0.1:18088', '--drive', drive, '--osc', '19601', '--ose', 'http://127.0.0.1:18080'], { stdio: 'inherit' });
+const child = spawn(process.execPath, [path.join(root, 'server.js'), '--port', '8791', '--data', path.join(root, 'demo-data'), '--vmix', '127.0.0.1:18088', '--drive', drive, '--osc', '19601', '--ose', 'http://127.0.0.1:18080', '--scoreboard', sbUrl], { stdio: 'inherit' });
 setTimeout(() => {
   const url = 'http://localhost:8791/control?layout=vertical';
   console.log('\nOpen ' + url);

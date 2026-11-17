@@ -336,6 +336,26 @@ test('Graphics Controller: game info, sport follow, field sources, never writes 
   assert.equal(engine.state().gc.game, null);
 });
 
+test('ScoreReader: live feed, status, scoreboard field source updates while on air', async () => {
+  const sbSrv = require('./mock-scorereader').createServer(); await new Promise((r) => sbSrv.listen(0, r));
+  await engine.run('scoreboard.set', { url: '127.0.0.1:' + sbSrv.address().port });
+  assert.equal(engine.store.config.scoreboardUrl, 'http://127.0.0.1:' + sbSrv.address().port);
+  assert.ok(await until(() => engine.state().scoreboard.live), 'live');
+  assert.equal(engine.state().scoreboard.data.down_distance, '3rd & 7');
+  const g = engine.state().graphics.items.find((x) => x.id === 'scorebug');
+  await engine.run('gfx.field', { key: g.key, name: 'Half.Text', source: 'sb', sb: 'home_score' });
+  await engine.run('gfx.take', { id: 'scorebug' });
+  assert.equal(inputBy('Scorebug.gtzip').fields[0].value, '14');
+  sbSrv.over.home_score = '21';
+  assert.ok(await until(() => inputBy('Scorebug.gtzip').fields[0].value === '21'), 'live update while on air');
+  await engine.run('gfx.out', { id: 'scorebug' });
+  await engine.run('gfx.field', { key: g.key, name: 'Half.Text', source: 'typed' });
+  await engine.run('scoreboard.set', { url: '127.0.0.1:1' });   // nothing there
+  assert.ok(await until(() => !engine.state().scoreboard.ok), 'not reachable');
+  await engine.run('scoreboard.set', { url: '' });
+  sbSrv.closeAllConnections(); sbSrv.close();
+});
+
 test('settings: layout, health blocks, ad folders, shows', async () => {
   await engine.run('layout.set', { layout: 'vertical', order: ['mix', 'gfx', 'video', 'ads', 'music', 'stream'], hidden: ['stream'], open: ['gfx'] });
   assert.deepEqual(engine.state().layout.vertical.hidden, ['stream']);
