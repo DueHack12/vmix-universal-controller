@@ -160,6 +160,10 @@ It only reads public data. A whole game uses a small part of the free daily quot
 ## Try it without vMix
 Double-click **`Try Demo (no vMix).bat`** (or run `npm run demo`). It starts a fake vMix plus demo media and opens the controller on port 8791. Nothing touches the real vMix or the Drive.
 
+On a **Mac**, double-click **`Try Demo (Mac).command`** instead. The first time, macOS may block it: right-click it, choose **Open**, then **Open** again.
+
+**Both FPGT apps at once:** put the two app folders side by side (for example `FPGT/vMix Universal Controller` and `FPGT/vMix Graphics Control`), then double-click **`Start FPGT (Mac).command`** on a Mac (Graphics Control on :3000 plus the vMix UC demo on :8791), or **`Start FPGT.bat`** on the vMix PC (both apps for real, each in its own window). See `INTEGRATION.md` for how the two apps split the work.
+
 ## For whoever maintains it
 - **Stack:** Node 22+ with **no dependencies** (no `npm install`).
 - **Code layout:**
