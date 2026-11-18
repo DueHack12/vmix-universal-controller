@@ -207,3 +207,12 @@ test('Graphics Controller game info: normalize accepts small differences', () =>
   assert.equal(g.home.abbr, 'FP'); assert.equal(g.home.color, '#C8102E'); assert.equal(g.visitor.name, 'Hand'); assert.equal(g.gender, '');
   assert.equal(normalize(null), null);
 });
+
+test('OSC: a malformed packet throws instead of hanging the server', () => {
+  const osc = require('../src/osc');
+  const b = Buffer.alloc(24); b.write('#bundle\0', 0); b.writeInt32BE(-4, 16);   // element length -4 used to loop forever
+  assert.throws(() => osc.decode(b), /bad OSC bundle/);
+  const big = Buffer.alloc(24); big.write('#bundle\0', 0); big.writeInt32BE(4000, 16);
+  assert.throws(() => osc.decode(big), /bad OSC bundle/);
+  assert.deepEqual(osc.decode(osc.encode('/console/music/play', [1])), [{ address: '/console/music/play', args: [1] }]);
+});

@@ -86,12 +86,16 @@ module.exports = (engine) => {
   const fieldCfg = (g, name) => (g.cfg.fields || []).find((f) => f.name === name) || {};
 
   /** Logo file in <Drive>\Graphics\Logos matching a team (abbrev / short / name). */
+  /** the Logos folder, read in the background and kept 10 s: a slow Google Drive must never hold up a TAKE */
+  function logoFiles(dir = engine.driveDir('Graphics', 'Logos')) {
+    return engine.cached('logos:' + dir, 10000, () => fs.promises.readdir(dir).then((l) => l.filter((f) => /\.(png|jpe?g|gif|svg|webp)$/i.test(f)), () => []), []);
+  }
   function logoFor(side) {
     const gt = engine.features.gc && engine.features.gc.team(side);
     if (gt && gt.logo) return gt.logo;   // the Graphics Controller's own logo file (a Drive path vMix can load)
     const t = (engine.features.ose && engine.features.ose.team(side)) || gt;
     const dir = engine.driveDir('Graphics', 'Logos');
-    let files = []; try { files = fs.readdirSync(dir).filter((f) => /\.(png|jpe?g|gif|svg|webp)$/i.test(f)); } catch { return ''; }
+    const files = logoFiles(dir);
     const names = t ? [t.abbrev, t.short, t.name].filter(Boolean).map((x) => x.toLowerCase()) : [];
     const hit = files.find((f) => names.includes(f.replace(/\.[^.]+$/, '').toLowerCase())) || files.find((f) => names.some((n) => n && f.toLowerCase().startsWith(n)));
     return hit ? path.join(dir, hit) : '';
@@ -224,6 +228,7 @@ module.exports = (engine) => {
       }
     },
     state() {
+      logoFiles();   // keeps the logo list warm, so the first TAKE of the night already has it
       const now = Date.now();
       const L = list();
       const onAirKeys = new Set(L.filter((g) => isOn(g.key)).map((g) => g.key));

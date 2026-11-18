@@ -101,7 +101,7 @@ module.exports = (engine) => {
   async function playTrack(p, { fadeIn = false } = {}) {
     if (!inp()) return { ok: false, error: 'Music player not linked' };
     if (!p) return { ok: false, error: 'No song to play' };
-    clearTimeout(fadeTimer);
+    clearTimeout(fadeTimer); fadeTimer = null;
     queue = queue.filter((q) => L.norm(q) !== L.norm(p));
     if (listPending) await syncList(true); // the operator picked a song: switch to the new playlist now
     const i = await select(p); if (!i) return { ok: false, error: 'Could not find that song in the vMix list' };
@@ -126,17 +126,17 @@ module.exports = (engine) => {
   }
   async function fadeOut(ms) {
     const i = inp(); if (!i) return { ok: false, error: 'Music player not linked' };
-    clearTimeout(fadeTimer);
+    clearTimeout(fadeTimer); fadeTimer = null;
     const dur = ms ?? cfg().fadeMs;
     if (!dur) { await engine.fn('Pause', { Input: i.key }); await afterStop(); return { ok: true }; }
     await engine.fn('SetVolumeFade', { Input: i.key, Value: '0,' + dur });
-    fadeTimer = setTimeout(async () => { await engine.fn('Pause', { Input: i.key }); await afterStop(); engine.changed(); }, dur + 120);
+    fadeTimer = setTimeout(async () => { fadeTimer = null; await engine.fn('Pause', { Input: i.key }); await afterStop(); engine.changed(); }, dur + 120);
     return { ok: true };
   }
   async function fadeIn(level) {
     const i = inp(); if (!i) return { ok: false, error: 'Music player not linked' };
-    clearTimeout(fadeTimer);
-    if (level !== undefined) cfg().level = Number(level);
+    clearTimeout(fadeTimer); fadeTimer = null;
+    if (level !== undefined && Number.isFinite(Number(level))) cfg().level = Math.max(0, Math.min(100, Number(level)));
     if (!i.list.length || !L.indexOf(i, now)) return playTrack(candidate(), { fadeIn: true });
     await engine.fn('SetVolume', { Input: i.key, Value: 0 });
     await engine.fn('Play', { Input: i.key });
@@ -153,19 +153,23 @@ module.exports = (engine) => {
 
   engine.cmd('music.toggle', async () => {
     const i = inp(); if (!i) return { ok: false, error: 'Music player not linked' };
-    if (playing()) { clearTimeout(fadeTimer); return engine.fn('Pause', { Input: i.key }); }
+    if (playing()) { clearTimeout(fadeTimer); fadeTimer = null; return engine.fn('Pause', { Input: i.key }); }
     return resume();
   });
   engine.cmd('music.play', async ({ path: p } = {}) => {
     if (p) return playTrack(p);
-    if (!inp()) return { ok: false, error: 'Music player not linked' };
+    const i = inp(); if (!i) return { ok: false, error: 'Music player not linked' };
+    if (fadeTimer) {   // PLAY during a fade-out = keep the song going: stop the fade and bring the level back
+      clearTimeout(fadeTimer); fadeTimer = null;
+      return engine.fn('SetVolumeFade', { Input: i.key, Value: cfg().level + ',400' });
+    }
     if (playing()) return { ok: true };
     return resume();
   });
   engine.cmd('music.pause', () => { const i = inp(); return i ? engine.fn('Pause', { Input: i.key }) : { ok: false }; });
   engine.cmd('music.fadeout', ({ ms } = {}) => fadeOut(ms !== undefined ? Number(ms) : undefined));
   engine.cmd('music.fadein', ({ level } = {}) => fadeIn(level));
-  engine.cmd('music.kill', async () => { const i = inp(); if (!i) return { ok: false }; clearTimeout(fadeTimer); await engine.fn('Pause', { Input: i.key }); await afterStop(); return { ok: true }; });
+  engine.cmd('music.kill', async () => { const i = inp(); if (!i) return { ok: false }; clearTimeout(fadeTimer); fadeTimer = null; await engine.fn('Pause', { Input: i.key }); await afterStop(); return { ok: true }; });
   engine.cmd('music.next', async () => {
     if (!inp()) return { ok: false };
     const c = candidate();
@@ -176,9 +180,12 @@ module.exports = (engine) => {
   engine.cmd('music.prev', () => playTrack(prevInFolder(now) || now));
   engine.cmd('music.level', async ({ value, ms, step }) => {
     const rel = step !== undefined ? Number(step) : (typeof value === 'string' && /^[+-]/.test(value) ? Number(value) : null);
-    const v = Math.max(0, Math.min(100, rel !== null ? cfg().level + rel : Number(value)));
+    const raw = rel !== null ? (Number(cfg().level) || 0) + rel : Number(value);
+    if (!Number.isFinite(raw)) return { ok: false, error: 'Level must be a number 0-100' };
+    const v = Math.max(0, Math.min(100, Math.round(raw)));
     cfg().level = v; engine.save();
     const i = inp(); if (!i) return { ok: false };
+    if (fadeTimer) return { ok: true };   // fading out: the new level applies next time it plays
     if (playing()) return engine.fn('SetVolumeFade', { Input: i.key, Value: v + ',' + (ms !== undefined ? Number(ms) : cfg().fadeMs) });
     return engine.fn('SetVolume', { Input: i.key, Value: v });
   });
@@ -229,7 +236,7 @@ module.exports = (engine) => {
       const vid = engine.input('videos');
       const videoLive = cfg().duck !== false && !!(vid && snap.active === vid.number && vid.state === 'Running');
       if (videoLive && !ducked && running) { ducked = true; await engine.fn('SetVolumeFade', { Input: i.key, Value: '0,500' }); }
-      else if (!videoLive && ducked) { ducked = false; if (playing()) await engine.fn('SetVolumeFade', { Input: i.key, Value: cfg().level + ',' + cfg().fadeMs }); }
+      else if (!videoLive && ducked) { ducked = false; if (playing() && !fadeTimer) await engine.fn('SetVolumeFade', { Input: i.key, Value: cfg().level + ',' + cfg().fadeMs }); }
     },
     state() {
       const i = inp();
@@ -239,7 +246,7 @@ module.exports = (engine) => {
       return {
         linked: !!i, playing: playing(), now: nameOf(now), nowPath: now,
         position: Math.round(pos / 1000), duration: Math.round(dur / 1000), remaining: Math.max(0, Math.round((dur - pos) / 1000)),
-        level: cfg().level, duck: cfg().duck !== false, savedPlaylists: Object.keys(cfg().playlists || {}), volume: i ? Math.round(engine.faderOf(i.volume)) : 0, fadeMs: cfg().fadeMs, after: cfg().after, mode: cfg().mode, ducked,
+        level: Number.isFinite(Number(cfg().level)) && cfg().level !== null ? Number(cfg().level) : 50, duck: cfg().duck !== false, savedPlaylists: Object.keys(cfg().playlists || {}), volume: i ? Math.round(engine.faderOf(i.volume)) : 0, fadeMs: cfg().fadeMs, after: cfg().after, mode: cfg().mode, ducked, fading: !!fadeTimer,
         playlist: cfg().folder, playlists: playlists(), scanning,
         vmixCount: i ? i.list.length : 0, listPending, autoNextWarn: sel.autoNextSeen,
         songs: songs.map((s) => ({ path: s.path, name: s.name, seconds: s.seconds, queued: queue.some((q) => L.norm(q) === L.norm(s.path)), now: L.norm(s.path) === L.norm(now) })),

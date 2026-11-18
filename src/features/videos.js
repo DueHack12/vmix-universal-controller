@@ -80,7 +80,11 @@ module.exports = (engine) => {
     await engine.refresh(); // never decide "not on air" from a stale snapshot
     if (onAir()) { pendingCue = p; return { ok: true, waiting: true, note: 'Video is on air; it will cue when the director cuts away.' }; }
     if (listPending) await syncList({ exact: true });
-    if (!(await select(p))) return { ok: false, error: 'Could not find that clip in the vMix list' };
+    if (!(await select(p))) {
+      // don't retry on every poll (that would hammer vMix and could keep adding to its list)
+      if (pendingCue === p) { pendingCue = ''; engine.log('Could not cue ' + nameOf(p) + ' (not found in the vMix VIDEOS list)', true); }
+      return { ok: false, error: 'Could not find that clip in the vMix list' };
+    }
     await engine.fn('PreviewInput', { Input: i.key });
     pendingCue = '';
     return { ok: true };

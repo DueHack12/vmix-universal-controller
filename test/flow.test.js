@@ -146,6 +146,20 @@ test('music: whole playlist in the vMix list, UC selects; fade out cues next; pl
   await engine.run('music.after', { value: 'restart' });
 });
 
+test('music: PLAY during a fade-out keeps the song going', { skip: !hasFfmpeg }, async () => {
+  await engine.run('music.play'); assert.ok(await until(() => engine.state().music.playing), 'playing');
+  await engine.run('music.fadeout', { ms: 800 }); await sleep(200);
+  assert.equal(engine.state().music.fading, true);
+  const from = mock.state().calls.length;
+  assert.equal((await engine.run('music.play')).ok, true);
+  await sleep(1200);
+  // the fade's own Pause must not fire (the short demo song may still end by itself, so don't test "playing")
+  const musicKey = mock.state().inputs.find((i) => i.title === 'MUSIC').key;
+  assert.ok(!mock.state().calls.slice(from).some((c) => c.fn === 'Pause' && c.Input === musicKey), 'no Pause from the cancelled fade');
+  assert.equal(engine.state().music.fading, false);
+  await engine.run('music.kill');
+});
+
 test('ads: fill, GO countdown, cued to Preview, plays on Program, timers, back to game', { skip: !hasFfmpeg }, async () => {
   assert.ok(await until(() => engine.state().ads.library.length >= 5), 'ad library scanned');
   engine.show.ads.countdown = 1;
@@ -176,7 +190,25 @@ test('ads: fill, GO countdown, cued to Preview, plays on Program, timers, back t
   assert.ok(await until(() => fs.existsSync(path.join(drive, 'Exports')) && fs.readdirSync(path.join(drive, 'Exports')).some((f) => f.startsWith('ads-played-'))), 'log file on the Drive');
 });
 
-test('ads: cancel countdown, add and remove break playlists', async () => {
+test('ads: CANCEL right at 0 really cancels; a double GO sends the ads once', { skip: !hasFfmpeg }, async () => {
+  const adsIn = () => mock.state().inputs.find((i) => i.title === 'ADS');
+  engine.show.ads.countdown = 1;
+  assert.equal((await engine.run('ads.go')).ok, true);
+  await sleep(1030);                                  // countdown just hit 0: the break is starting
+  await engine.run('ads.cancel');
+  await sleep(1500);
+  assert.equal(engine.state().ads.phase, 'idle', 'stays cancelled');
+  assert.notEqual(mock.state().preview, adsIn().number, 'ADS not put in Preview');
+  engine.show.ads.countdown = 0;
+  const [a, b] = await Promise.all([engine.run('ads.go'), engine.run('ads.go')]);
+  assert.deepEqual([a.ok, b.ok], [true, false], 'second GO refused');
+  assert.ok(await until(() => ['cued', 'break'].includes(engine.state().ads.phase), 4000), 'cued: ' + JSON.stringify(engine.state().ads.phase) + ' ' + engine.state().log.slice(-5).join(' / '));
+  assert.equal(adsIn().list.length, engine.show.ads.breaks.find((x) => x.id === engine.state().ads.selected).items.length, 'each ad once');
+  await engine.run('ads.back');
+  engine.show.ads.countdown = 5;
+});
+
+test('ads: cancel countdown, add and remove break playlists', { skip: !hasFfmpeg }, async () => {
   engine.show.ads.countdown = 3;
   await engine.run('ads.go'); assert.equal(engine.state().ads.phase, 'count');
   await engine.run('ads.cancel'); assert.equal(engine.state().ads.phase, 'idle');

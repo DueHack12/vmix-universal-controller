@@ -121,7 +121,10 @@ function upload(req, res, u) {
   const folder = u.searchParams.get('folder'); const name = u.searchParams.get('name');
   let target;
   try { target = videos.uploadTarget(folder, name); } catch (e) { return send(res, 400, { ok: false, error: e.message }); }
-  const tmp = target + '.' + crypto.randomBytes(4).toString('hex') + '.uploading';
+  // the half-written file stays on this PC (data/cache/uploads), never on the Drive; only the finished file is copied in
+  const tmpDir = path.join(dataDir, 'cache', 'uploads');
+  try { fs.mkdirSync(tmpDir, { recursive: true }); } catch (e) { return send(res, 500, { ok: false, error: e.message }); }
+  const tmp = path.join(tmpDir, crypto.randomBytes(6).toString('hex') + '.uploading');
   const out = fs.createWriteStream(tmp);
   let done = false;
   const fail = (code, msg) => {
@@ -136,9 +139,13 @@ function upload(req, res, u) {
   out.on('finish', async () => {
     if (done) return; done = true;
     try {
-      // another upload may have taken the name meanwhile: pick a free one again
-      const final = fs.existsSync(target) ? videos.uploadTarget(folder, name) : target;
-      fs.renameSync(tmp, final);
+      // copy in, never over: COPYFILE_EXCL fails if the name was taken meanwhile, then pick a free one again
+      let final = target;
+      for (let tries = 0; ; tries++) {
+        try { await fs.promises.copyFile(tmp, final, fs.constants.COPYFILE_EXCL); break; }
+        catch (e) { if (e.code !== 'EEXIST' || tries > 20) throw e; final = videos.uploadTarget(folder, name); }
+      }
+      fs.rm(tmp, { force: true }, () => {});
       engine.log('Uploaded ' + path.basename(final));
       await videos.rescan();
       send(res, 200, { ok: true, file: path.basename(final) });
@@ -197,6 +204,8 @@ async function handle(req, res) {
       return fs.createReadStream(f).pipe(res);
     }
     if (p.startsWith('/osc/')) {
+      // the "OSC only from" list (Master › Setup › Security) covers Companion over HTTP too, not just UDP
+      if (!auth.oscAllowed(req.socket.remoteAddress)) return send(res, 403, { ok: false, error: 'This computer is not on the OSC allow list' });
       const raw = u.searchParams.get('value');
       const qa = u.searchParams.has('value') ? [isNaN(Number(raw)) || raw === '' ? raw : Number(raw)] : [];
       const r = osc.route(p.slice(4), qa);

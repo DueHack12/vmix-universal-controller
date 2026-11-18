@@ -106,7 +106,7 @@ G:\Shared drives\Prep Sports Broadcasting\vMix Universal Controller\
 ├── Music\    Bumps, Highlights, Pregame, Timeouts, Walk-out …   (one folder = one playlist)
 ├── Ads\      15Second, 30Second, 1Minute, 2Minutes+, Unsorted, Sponsors\NFHS, Sponsors\DAF
 ├── Graphics\ Logos, Backgrounds
-├── Shows\    backup copy of every saved show
+├── Shows\    backup copy of every saved show, one per computer ("Football (VMIX-PC).json")
 ├── Exports\  ads-played-YYYY-MM-DD.csv (what aired, for sponsors)
 └── _Archive\
 ```

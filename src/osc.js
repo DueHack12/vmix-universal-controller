@@ -11,10 +11,17 @@ function readStr(buf, off) {
   let end = off; while (end < buf.length && buf[end] !== 0) end++;
   return [buf.toString('utf8', off, end), pad4(end + 1)];
 }
-function decode(buf) {
+/** Packets come from the network, so a bad one must throw (the caller logs it), never loop or hang. */
+function decode(buf, depth = 0) {
   if (buf.toString('utf8', 0, 7) === '#bundle') {
+    if (depth > 4) throw new Error('OSC bundles nested too deep');
     const out = []; let off = 16;
-    while (off + 4 <= buf.length) { const len = buf.readInt32BE(off); off += 4; out.push(...decode(buf.subarray(off, off + len))); off += len; }
+    while (off + 4 <= buf.length) {
+      const len = buf.readInt32BE(off); off += 4;
+      if (len <= 0 || len % 4 !== 0 || off + len > buf.length) throw new Error('bad OSC bundle element length ' + len);
+      out.push(...decode(buf.subarray(off, off + len), depth + 1)); off += len;
+      if (out.length > 64) throw new Error('too many OSC messages in one bundle');
+    }
     return out;
   }
   let [address, off] = readStr(buf, 0);
@@ -22,6 +29,7 @@ function decode(buf) {
   if (off < buf.length && buf[off] === 44) [types, off] = readStr(buf, off);
   const args = [];
   for (const t of types.slice(1)) {
+    if (args.length >= 16) break;
     if (t === 'i') { args.push(buf.readInt32BE(off)); off += 4; }
     else if (t === 'f') { args.push(buf.readFloatBE(off)); off += 4; }
     else if (t === 's') { let s; [s, off] = readStr(buf, off); args.push(s); }

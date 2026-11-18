@@ -138,9 +138,11 @@ module.exports = (engine) => {
     /** the GC title for a vMix input {key, number, title}: GC's own link first, then the name */
     titleFor(input) {
       if (!titles || !input) return null;
+      const it = normTitle(input.title);
+      // GC's own link wins; then the exact name; then whole words ("bk score" must not match "bk scorebug")
       const t = titles.find((x) => x.input && (x.input === input.key || x.input === String(input.number)))
-        || titles.find((x) => !x.input && normTitle(x.name) === normTitle(input.title))
-        || titles.find((x) => !x.input && normTitle(input.title).startsWith(normTitle(x.name)));
+        || titles.find((x) => !x.input && normTitle(x.name) && normTitle(x.name) === it)
+        || titles.find((x) => { const n = normTitle(x.name); return !x.input && n && it.startsWith(n + ' '); });
       return t ? { id: t.id, name: t.name, group: t.group, sport: t.sport, owns: t.owns, editUrl: editorUrl(t.editPath) } : null;
     },
     titles() { return titles; },

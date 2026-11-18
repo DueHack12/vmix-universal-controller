@@ -19,6 +19,8 @@ module.exports = (engine) => {
   let scanning = false;
   let sel = null;         // selected break id
   let phase = 'idle';     // idle | count | cued | break | done
+  let gen = 0;            // bumped by CANCEL / BACK TO GAME / show change: a break that is still starting stops
+  let starting = false;   // startBreak() is talking to vMix (blocks a second GO)
   let count = 0; let countTimer = null;
   let current = null;     // { id, startedAt, lastIndex }
   let history = [];       // [[paths of a played break], ...] newest last
@@ -69,7 +71,14 @@ module.exports = (engine) => {
     engine.save();
   }
 
-  async function sendToVmix(b, mode = 'replace') {
+  let sendQueue = Promise.resolve();
+  /** one at a time: two interleaved sends would put every ad in the vMix list twice */
+  function sendToVmix(b, mode = 'replace') {
+    const run = sendQueue.then(() => sendNow(b, mode));
+    sendQueue = run.catch(() => {});
+    return run;
+  }
+  async function sendNow(b, mode) {
     const i = adsInput(); if (!i) return { ok: false, error: 'Ads player not linked' };
     if (mode === 'replace') await engine.fn('ListRemoveAll', { Input: i.key });
     for (const p of b.items) { await engine.fn('ListAdd', { Input: i.key, Value: p }); await new Promise((r) => setTimeout(r, 80)); }
@@ -100,42 +109,59 @@ module.exports = (engine) => {
   }
 
   async function startBreak() {
-    const b = selBreak(); if (!b) return;
+    const my = gen; const stale = () => my !== gen;   // cancelled while we were waiting on vMix
+    const b = selBreak(); if (!b) { phase = 'idle'; return; }
     const i = adsInput(); if (!i) { phase = 'idle'; engine.log('GO TO AD BREAK: ads player not linked'); return; }
-    const music = engine.features.music;
-    if (music && music.state().playing) await music.fadeOut(cfg().musicOnGo.fadeMs);
-    if (!b.items.length) fill(b);
-    if (!listMatches(b)) await sendToVmix(b);
-    await engine.fn('SelectIndex', { Input: i.key, Value: 1 });
-    await engine.fn('PreviewInput', { Input: i.key });
-    current = { id: b.id, startedAt: 0, lastIndex: 0 };
-    phase = 'cued';
-    engine.changed();
+    starting = true;
+    try {
+      const music = engine.features.music;
+      if (music && music.state().playing) await music.fadeOut(cfg().musicOnGo.fadeMs);
+      if (stale()) return;
+      if (!b.items.length) fill(b);
+      if (!listMatches(b)) await sendToVmix(b);
+      if (stale()) return;
+      await engine.fn('SelectIndex', { Input: i.key, Value: 1 });
+      if (stale()) return;
+      await engine.fn('PreviewInput', { Input: i.key });
+      if (stale()) return;
+      current = { id: b.id, startedAt: 0, lastIndex: 0 };
+      phase = 'cued';
+    } catch (e) {
+      if (!stale()) { phase = 'idle'; engine.log('GO TO AD BREAK failed: ' + e.message, true); }
+    } finally { starting = false; engine.changed(); }
   }
+  /** stop a countdown or a break that is still starting */
+  function abort() { gen++; clearInterval(countTimer); countTimer = null; }
 
   engine.cmd('ads.go', ({ id } = {}) => {
-    if (phase === 'count' || phase === 'cued' || phase === 'break') return { ok: false, error: 'A break is already running' };
+    if (starting || phase === 'count' || phase === 'cued' || phase === 'break') return { ok: false, error: 'A break is already running' };
     if (id) sel = id;
     if (!selBreak()) return { ok: false, error: 'No break playlist' };
+    // check now, not after the countdown: otherwise the operator waits 5 s for nothing
+    if (!engine.vmix.connected) return { ok: false, error: 'vMix is not connected' };
+    if (!adsInput()) return { ok: false, error: 'Ads player not linked (Master › Setup › Assign jobs)' };
+    if (!selBreak().items.length && !library.length) return { ok: false, error: 'No ads found (Master › Ads › Ad library)' };
     count = Number(cfg().countdown) || 0;
-    clearInterval(countTimer);
+    abort();
     if (count <= 0) { startBreak(); return { ok: true }; }
     phase = 'count';
+    const my = gen;
     countTimer = setInterval(() => {
+      if (my !== gen) return;
       count--;
-      if (count <= 0) { clearInterval(countTimer); startBreak(); }
+      if (count <= 0) { clearInterval(countTimer); countTimer = null; startBreak(); }
       engine.changed();
     }, 1000);
     return { ok: true };
   });
-  engine.cmd('ads.cancel', () => { clearInterval(countTimer); if (phase === 'count') phase = 'idle'; return { ok: true }; });
+  engine.cmd('ads.cancel', () => { if (phase === 'count' || starting) { abort(); phase = 'idle'; starting = false; } return { ok: true }; });
   engine.cmd('ads.skip', async () => {
     const i = adsInput(); if (!i) return { ok: false };
     if ((i.selectedIndex || 1) >= i.list.length) { await engine.fn('Pause', { Input: i.key }); phase = 'done'; return { ok: true }; }
     return engine.fn('NextItem', { Input: i.key });
   });
   engine.cmd('ads.back', async () => {
-    clearInterval(countTimer);
+    abort();
     const i = adsInput(); const btg = cfg().backToGame || {};
     if (i && btg.stopAds !== false) await engine.fn('Pause', { Input: i.key });
     const cam = engine.input('gameCam');
@@ -210,7 +236,7 @@ module.exports = (engine) => {
   return {
     name: 'ads',
     init() { rescan(); },
-    onShow() { phase = 'idle'; sel = null; rescan(); },
+    onShow() { abort(); phase = 'idle'; starting = false; current = null; sel = null; rescan(); },
     onConfig() { rescan(); },
     onPoll(snap) {
       const i = adsInput(); if (!i) return;

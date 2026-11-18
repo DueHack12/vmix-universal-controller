@@ -76,6 +76,16 @@ class VmixClient {
   setAddress(host, port, user = this.user, password = this.password) { this.host = host; this.port = Number(port) || 8088; this.user = user || ''; this.password = password || ''; }
   /** Basic auth for vMix Web Controller when a user name or password is set */
   get auth() { return this.user || this.password ? this.user + ':' + this.password : undefined; }
+  /** network errors in words an operator understands (the raw code stays in brackets for whoever debugs) */
+  static friendly(e) {
+    const m = String((e && (e.code || e.message)) || e || '');
+    if (/ECONNREFUSED/.test(m)) return 'vMix isn\'t answering: is vMix open, with Settings › Web Controller on? (' + m.replace(/^connect /, '') + ')';
+    if (/EHOSTUNREACH|ENETUNREACH|EHOSTDOWN/.test(m)) return 'Can\'t reach the vMix computer on the network (' + m + ')';
+    if (/timeout|ETIMEDOUT/i.test(m)) return 'vMix is too slow to answer (busy, or the wrong address?)';
+    if (/HTTP 401/.test(m)) return 'vMix wants a user name and password (Master › Setup › Find vMix)';
+    if (/ENOTFOUND|EAI_AGAIN/.test(m)) return 'vMix address not found (' + m + ')';
+    return (e && e.message) || m;
+  }
   async poll() {
     try {
       const body = await get(this.host, this.port, '/api', 1500, this.auth);
@@ -83,7 +93,7 @@ class VmixClient {
       this.connected = true; this.lastError = '';
       return this.snap;
     } catch (e) {
-      this.connected = false; this.lastError = e.message;
+      this.connected = false; this.lastError = VmixClient.friendly(e);
       throw e;
     }
   }
@@ -92,7 +102,8 @@ class VmixClient {
     const q = new URLSearchParams({ Function: name });
     for (const [k, v] of Object.entries(params)) if (v !== undefined && v !== null && v !== '') q.set(k, String(v));
     this.calls++;
-    return get(this.host, this.port, '/api/?' + q.toString(), 1500, this.auth);
+    try { return await get(this.host, this.port, '/api/?' + q.toString(), 1500, this.auth); }
+    catch (e) { throw new Error(VmixClient.friendly(e)); }
   }
 }
 

@@ -71,7 +71,7 @@
   function videos() {
     const v = S.videos;
     return `<div class="panel"><b style="font-size:20px">${v.now ? (v.running ? '▶ ' : v.inPreview ? 'CUED · ' : '') + esc(v.now) + ' · ' + mmss(v.remaining) + ' left' : 'Nothing cued'}</b><span class="small muted">Next: ${esc(v.queue[0] ? v.queue[0].name : 'nothing queued')}</span></div>
-      <div class="rgrid" style="grid-template-columns:repeat(3,minmax(0,1fr))">${b('CUE NEXT', 'video.next', {}, 'big b-green')}${b(v.running ? '❚❚' : '▶', 'video.playpause', {}, 'big')}${b('⟲ RESTART', 'video.restart', {}, 'big')}</div>
+      <div class="rgrid" style="grid-template-columns:repeat(3,minmax(0,1fr))">${b('CUE NEXT', 'video.next', {}, 'big b-green', v.queue.length ? '' : 'disabled title="Queue a clip first"')}${b(v.running ? '❚❚' : '▶', 'video.playpause', {}, 'big')}${b('⟲ RESTART', 'video.restart', {}, 'big')}</div>
       <div class="tiles">${v.clips.map((c) => `<button class="card" style="padding:0;overflow:hidden;border:1px solid ${c.status === 'cued' ? 'var(--green)' : c.status === 'queued' ? 'var(--blue)' : c.status === 'playing' || c.status === 'on air' ? 'var(--red)' : 'var(--line2)'}" data-cmd="video.cue" data-args="${attr({ path: c.path })}"><div class="thumb" style="${c.thumb ? `background-image:url('${esc(c.thumb)}')` : ''}"><span class="badge">${esc(c.status.toUpperCase())}</span><span class="dur">${c.seconds ? mmss(c.seconds) : ''}</span></div><div class="clip-name ellipsis">${esc(c.name)}</div></button>`).join('')}</div>`;
   }
 

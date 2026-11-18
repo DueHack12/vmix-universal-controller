@@ -77,7 +77,7 @@ function merge(base, extra) {
   return out;
 }
 
-const safeName = (s) => String(s || 'Default').replace(/[^\w .()-]+/g, '_').trim() || 'Default';
+const safeName = (s) => String(s || 'Default').replace(/[^\w .()-]+/g, '_').replace(/^[. ]+/, '').trim() || 'Default';
 
 class Store {
   constructor(dataDir) {
@@ -97,14 +97,26 @@ class Store {
     fs.renameSync(tmp, p);
   }
   saveConfig() { this.writeJson('config.json', this.config); }
+  /** show names as typed (the file name is a filesystem-safe version: "Football 🏈 / Senior Night" -> "Football _ _ Senior Night.json").
+   *  Called for every state update, so the answer is cached for 2 s. */
   listShows() {
-    try { return fs.readdirSync(path.join(this.dir, 'shows')).filter((f) => f.endsWith('.json')).map((f) => f.slice(0, -5)); } catch { return []; }
+    if (this._shows && Date.now() - this._shows.at < 2000) return this._shows.list;
+    let list = [];
+    try {
+      list = fs.readdirSync(path.join(this.dir, 'shows')).filter((f) => f.endsWith('.json') && !f.startsWith('.')).map((f) => {
+        const base = f.slice(0, -5);
+        try { const n = JSON.parse(fs.readFileSync(path.join(this.dir, 'shows', f), 'utf8')).name; return n && safeName(n) === base ? String(n) : base; } catch { return base; }
+      });
+    } catch { /* no shows yet */ }
+    this._shows = { at: Date.now(), list };
+    return list;
   }
   loadShow(name) {
     const saved = this.readJson(path.join('shows', safeName(name) + '.json'), null);
     return merge(defaultShow(name), saved || {});
   }
   saveShow(show) {
+    this._shows = null;
     this.writeJson(path.join('shows', safeName(show.name) + '.json'), show);
     this.backupToDrive(show);
   }
@@ -114,7 +126,8 @@ class Store {
    */
   backupToDrive(show) {
     const dir = path.join(this.config.driveRoot, 'Shows');
-    const file = path.join(dir, safeName(show.name) + '.json');
+    // one backup per show per computer, so a second install (or a laptop) never overwrites this PC's copy
+    const file = path.join(dir, safeName(show.name) + ' (' + safeName(require('os').hostname()) + ').json');
     const text = JSON.stringify(show, null, 2);
     this.pendingBackup = { file, text };
     if (this.backupBusy) return;
@@ -128,6 +141,7 @@ class Store {
     next();
   }
   deleteShow(name) {
+    this._shows = null;
     try { fs.unlinkSync(path.join(this.dir, 'shows', safeName(name) + '.json')); } catch { /* gone */ }
   }
   cachePath(...p) { return path.join(this.dir, 'cache', ...p); }

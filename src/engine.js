@@ -230,22 +230,29 @@ class Engine {
 
   /* ---------- polling ---------- */
   start() {
+    this.stopped = false;
     const tick = async () => {
-      const prev = this.snap;
-      const seq = ++this.pollSeq;
-      try { await this.vmix.poll(); } catch { /* connected=false */ }
-      if (seq === this.pollSeq) this.snap = this.vmix.connected ? this.vmix.snap : prev && { ...prev, stale: true };
-      if (this.vmix.connected) this.checkVolumeProbe();
-      for (const f of Object.values(this.features)) {
-        if (f.onPoll && this.vmix.connected) { try { await f.onPoll(this.snap, prev); } catch (e) { this.log(f.name + ' poll error: ' + e.message); } }
+      try {
+        const prev = this.snap;
+        const seq = ++this.pollSeq;
+        try { await this.vmix.poll(); } catch { /* connected=false */ }
+        if (seq === this.pollSeq) this.snap = this.vmix.connected ? this.vmix.snap : prev && { ...prev, stale: true };
+        if (this.vmix.connected) { try { this.checkVolumeProbe(); } catch (e) { this.log('Volume check failed: ' + e.message); } }
+        for (const f of Object.values(this.features)) {
+          if (f.onPoll && this.vmix.connected) { try { await f.onPoll(this.snap, prev); } catch (e) { this.log(f.name + ' poll error: ' + e.message); } }
+        }
+        this.changed();
+      } catch (e) {
+        this.log('Poll error: ' + e.message);
+      } finally {
+        // whatever happened, keep polling: a stopped poll loop would freeze everything for the rest of the show
+        if (!this.stopped) this.pollTimer = setTimeout(tick, this.store.config.pollMs || 250);
       }
-      this.changed();
-      this.pollTimer = setTimeout(tick, this.store.config.pollMs || 250);
     };
     tick();
     for (const f of Object.values(this.features)) if (f.init) f.init();
   }
-  stop() { clearTimeout(this.pollTimer); for (const f of Object.values(this.features)) if (f.stop) f.stop(); }
+  stop() { this.stopped = true; clearTimeout(this.pollTimer); for (const f of Object.values(this.features)) if (f.stop) f.stop(); }
 
   /** The state pages, remotes and Companion see. Re-used for 100 ms when nothing changed (SSE + feedback ask often). */
   state() {

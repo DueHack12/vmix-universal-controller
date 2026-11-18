@@ -12,7 +12,7 @@
   /* ---------- layout ---------- */
   const SECS = { stream: 'Stream health', gfx: 'Graphics', video: 'Videos', ads: 'Ads', music: 'Music', mix: 'Mixer' };
   const colsEl = document.getElementById('cols');
-  colsEl.style.gridTemplateColumns = layout === 'horizontal' ? '1040px minmax(0, 1fr)' : 'minmax(0, 1fr)';
+  colsEl.style.gridTemplateColumns = layout === 'horizontal' ? 'minmax(0, 1.2fr) minmax(0, 1fr)' : 'minmax(0, 1fr)';
   let layoutSig = ''; let LAY = { order: Object.keys(SECS), hidden: [], open: [] };
   function buildCols() {
     const L = (S && S.layout && S.layout[layout]) || {};
@@ -274,7 +274,7 @@
       return `<div class="sec-body"><div class="bar music-bar ${m.playing ? 'playing' : ''}">${barTitle('music')}
         <div class="grow col" style="gap:2px"><span class="ellipsis" style="font-weight:700" class="${m.playing ? 'playing-text' : ''}"><span class="${m.playing ? 'playing-text' : ''}">${m.playing ? '▶' : '■'} ${esc(m.now || 'Nothing loaded')}</span></span>
         <span class="small muted ellipsis"><b class="${m.playing ? 'playing-text' : ''}">${status}</b> · <span class="mono">-${mmss(m.remaining)}</span> · next: ${esc(nextTxt)}</span></div>
-        ${playBtn}${btn('FADE OUT', 'music.fadeout', {}, 'b-sm')}${levels([25, 50, 100])}${btn('NEXT', 'music.next', {})}${btn('KILL', 'music.kill', {}, 'b-red-soft')}</div></div>`;
+        <span class="bar-keys">${playBtn}${btn('FADE OUT', 'music.fadeout', {}, 'b-sm')}${levels([25, 50, 100])}${btn('NEXT', 'music.next', {})}${btn('KILL', 'music.kill', {}, 'b-red-soft')}</span></div></div>`;
     }
     const pl = `<select class="grow" style="font-weight:700" data-cmd="music.playlist" data-key="name">${m.playlists.map((p) => `<option value="${esc(p.name)}" ${p.name === m.playlist ? 'selected' : ''}>${esc(p.name)}${p.kind === 'saved' ? ' (saved)' : ''}</option>`).join('') || '<option>No folders in Music</option>'}</select>`;
     const songs = m.songs.map((s) => `<div class="row"><button class="grow row" style="justify-content:space-between;font-weight:400;padding:7px 9px;${s.now ? 'border-color:var(--green)' : ''}" data-cmd="music.play" data-args="${attr({ path: s.path })}" title="Play now"><span class="ellipsis">${esc(s.name)}</span><span class="mono muted small">${s.now ? (m.playing ? 'PLAYING' : 'LOADED') : s.queued ? 'QUEUED' : s.seconds ? mmss(s.seconds) : ''}</span></button>${btn('+ Queue', 'music.queue', { path: s.path }, 'b-sm')}</div>`).join('') || '<span class="small muted">No songs in this playlist.</span>';

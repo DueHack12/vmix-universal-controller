@@ -3,6 +3,33 @@
 All notable changes are listed here. Versions follow [Semantic Versioning](https://semver.org).
 The release workflow uses the section for the tag's version as the release notes.
 
+## [Unreleased]
+
+### Added
+- **Live scoreboard from ScoreReader** (the scoreboard NUC): strip on the control page, the whole feed in Master › Setup, a "Scoreboard (ScoreReader), live" field source, Companion feedback.
+- **vMix Graphics Controller:** game info, its titles with a GC tag and Edit ↗ link, its fields locked, titles not in vMix listed (INTEGRATION.md v6).
+- FPGT suite look, with the Graphics Controller's exact keys.
+
+### Fixed
+- A malformed OSC packet could freeze the whole program. It is now rejected.
+- CANCEL pressed as the ad countdown hit 0 was ignored (the break still went to Preview); BACK TO GAME and loading a show had the same gap.
+- Pressing GO twice quickly (or Stream Deck + page) put every ad in the vMix list twice.
+- GO TO AD BREAK now says straight away when vMix is offline, the ads player isn't linked or there are no ads, instead of counting down for nothing.
+- PLAY during a music fade-out said OK but the music still stopped; a level change during a fade is kept for next time.
+- A non-number music level (e.g. a mistyped Companion button) broke the music level.
+- A video that can't be found in the vMix list is no longer retried 4 times a second.
+- One unexpected error could stop vMix polling for the rest of the show.
+- Uploads are written on this PC first and copied onto the Drive only when finished, never over an existing file.
+- Show backups on the Drive are one per computer, so a second install never overwrites this PC's copy.
+- The Companion allow list now covers `/osc/...` web links too, not just UDP.
+- The Logos folder is read in the background, so a slow Google Drive can't hold up a TAKE.
+- A Graphics Controller title only matches whole words ("BK SCORE" no longer matches "BK SCOREBUG").
+- Horizontal control page on a laptop (1366×768): the right column was squeezed to ~280 px; section keys now wrap as a group.
+- vMix connection errors in plain words ("vMix isn't answering: is vMix open, with Web Controller on?").
+- Start page: required steps that aren't done are red, optional extras grey (they were the other way round); a new install shows its Default show.
+- Show names keep emoji and "/" in the list (the file name is still made safe).
+- iPad remote: CUE NEXT is disabled when nothing is queued.
+
 ## [0.2.0-beta] - 2026-11-13
 
 Fixes from the first test on a real vMix.
