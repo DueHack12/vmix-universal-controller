@@ -283,3 +283,7 @@ span.pill.bad, .pill.bad { color: #FF8A82; border-color: rgba(255,59,48,.45); ba
 /* a bar's keys stay together: beside the text when there's room, on their own row when there isn't */
 .bar-keys { display: flex; gap: 8px; align-items: center; flex: none; margin-left: auto; }
 .bar-keys > button { white-space: nowrap; }
+
+/* real picture of the selected graphic, saved by vMix */
+.mon.snapmon { padding: 0; background: #000; max-height: 340px; }
+.mon.snapmon img.snap { width: 100%; height: 100%; object-fit: contain; display: block; }

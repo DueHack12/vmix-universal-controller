@@ -127,17 +127,34 @@ module.exports = (engine) => {
     }
   }
 
+  const lastTake = {};   // key -> time of the last TAKE (an OUT check must not undo a newer TAKE)
   async function take(ref) {
     const g = find(ref); if (!g) return { ok: false, error: 'No such graphic' };
+    lastTake[g.key] = Date.now();
     await applySources(g);
     pending = { key: g.key, want: 'on', at: Date.now() };
     return engine.fn('OverlayInput' + g.overlay + 'In', { Input: g.key });
   }
   async function out(ref) {
     const g = find(ref); if (!g) return { ok: false, error: 'No such graphic' };
-    pending = { key: g.key, want: 'off', at: Date.now() };
+    await engine.refresh();   // decide from what vMix shows now, not a snapshot from a moment ago
     const ovs = overlaysShowing(g.key);
-    for (const n of ovs.length ? ovs : [g.overlay]) await engine.fn('OverlayInput' + n + 'Out');
+    const i = engine.inputByKey(g.key);
+    if (!ovs.length && i && engine.snap && engine.snap.active === i.number) {
+      return { ok: false, error: g.name + ' is on Program (not an overlay): the director has to cut away from it' };
+    }
+    pending = { key: g.key, want: 'off', at: Date.now() };
+    const chans = ovs.length ? ovs : [g.overlay];
+    const outAt = Date.now();
+    for (const n of chans) await engine.fn('OverlayInput' + n + 'Out');
+    // a title whose out-animation doesn't finish (or a channel vMix didn't clear) is switched off instantly
+    setTimeout(async () => {
+      try {
+        if ((lastTake[g.key] || 0) > outAt) return;   // taken again since: leave it on
+        await engine.refresh();
+        for (const n of overlaysShowing(g.key)) { engine.log(g.name + ' was still on overlay ' + n + ' after OUT: switched it off'); await engine.fn('OverlayInput' + n + 'Off'); }
+      } catch (e) { engine.log('OUT check failed: ' + e.message); }
+    }, 1200).unref();
     return { ok: true };
   }
 
@@ -188,7 +205,7 @@ module.exports = (engine) => {
     if (sp.lineField) await setField(g, sp.lineField, line);
     if (sp.logoField) { const l = logoFor(side); if (l) await setField(g, sp.logoField, l); }
     if (sp.colorField) { const t = (engine.features.ose && engine.features.ose.team(side)) || (engine.features.gc && engine.features.gc.team(side)); if (t && t.color) await setField(g, sp.colorField, t.color); }
-    if (doTake) { pending = { key: g.key, want: 'on', at: Date.now() }; await engine.fn('OverlayInput' + g.overlay + 'In', { Input: g.key }); }
+    if (doTake) { lastTake[g.key] = Date.now(); pending = { key: g.key, want: 'on', at: Date.now() }; await engine.fn('OverlayInput' + g.overlay + 'In', { Input: g.key }); }
     return { ok: true, line };
   });
   engine.cmd('list.set', ({ name, items }) => {

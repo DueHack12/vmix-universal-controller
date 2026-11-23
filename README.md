@@ -155,7 +155,7 @@ Feedback sent to Companion (and readable at `/api/fb`): `/fb/gfx/{id}/onair`, `/
 It only reads public data. A whole game uses a small part of the free daily quota.
 
 ## Keyboard (control page)
-`Space` music play/pause · `F` fade out · `N` next song · `T` take selected graphic · `O` out · `C` cue next video · `P` video play/pause.
+`Space` music play/pause · `I` fade in · `F` fade out · `N` next song · `T` take selected graphic · `O` out · `C` cue next video · `P` video play/pause.
 
 ## Live scoreboard (ScoreReader)
 [ScoreReader](https://github.com/DueHack12/scorereader) runs on the NUC by the scoreboard console. In **Master › Setup › 4**, type the NUC's IP address (port 8765 is added for you) and press Save. Then:

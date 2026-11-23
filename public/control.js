@@ -31,7 +31,7 @@
     'video.next': 'Loads the next queued clip into vMix Preview for the director (C)', 'video.playpause': 'Play / pause the clip (P)', 'video.restart': 'Back to the start of the clip',
     'video.queue': 'Adds this clip to the end of the queue', 'video.cue': 'Loads this clip into vMix Preview now',
     'ads.go': '5-second countdown, then the music fades and the ads go to Preview', 'ads.back': 'Stops the ads, music back in, game camera to Preview', 'ads.skip': 'Jump to the next ad', 'ads.cancel': 'Stop the countdown',
-    'ads.fill': 'New random set of ads for this break', 'music.toggle': 'Play / pause the music (Space)', 'music.fadeout': 'Fade the music to silence (F)', 'music.kill': 'Stop the music right now',
+    'ads.fill': 'New random set of ads for this break', 'music.toggle': 'Play / pause the music (Space)', 'music.fadein': 'Start the song from silence and fade up to the level (or bring the level back up) (I)', 'music.fadeout': 'Fade the music to silence (F)', 'music.kill': 'Stop the music right now',
     'music.next': 'Next song (N)', 'music.level': 'Fade the music to this level', 'music.queue': 'Play this song after the current one',
     'mix.mute': 'Take this channel off the stream', 'mix.listen': 'Hear this channel in your headphones', 'mix.cough': 'Cough: silence this mic for a moment', 'rec.start': 'Start recording', 'rec.stop': 'Hold to stop recording',
   };
@@ -101,6 +101,11 @@
   }
 
   /* ---------- graphic mock-up (no video pictures: those cost vMix time and weren't needed) ---------- */
+  /* the real picture of the graphic comes from vMix; after a failure, show the mock-up and try again in 15 s */
+  const snapFail = {};
+  const snapOk = (key) => !snapFail[key] || Date.now() - snapFail[key] > 15000;
+  window.UC_snapFailed = (key) => { if (snapOk(key)) { snapFail[key] = Date.now(); renderMon(); } };
+  setInterval(() => { if (S) renderMon(); }, 1500);   // refresh the picture even when nothing else changes
   function renderMon() {
     const items = S.graphics.items;
     const g = items.find((x) => x.id === ui.gfx) || items[0]; // same graphic as the Graphics section
@@ -111,7 +116,9 @@
     patch(document.getElementById('mon'), `<div class="monitors one">
       <div class="row" style="gap:8px"><span class="mon-label">GRAPHIC</span><select class="grow" data-ui-select="gfx" aria-label="Graphic to show">${items.map((x) => `<option value="${esc(x.id)}" ${x.id === g.id ? 'selected' : ''}>${esc(x.name)}${x.onAir ? ' (ON AIR)' : ''}</option>`).join('')}</select>
         <span class="tiny" style="font-weight:800;color:${g.onAir ? 'var(--red-text)' : 'var(--muted)'}">${g.onAir ? '● ON AIR' : 'not live'}</span></div>
-      <div class="mon chk mock"><div class="l3">${lines}</div></div>
+      ${snapOk(g.key)
+        ? `<div class="mon snapmon"><img class="snap" alt="${esc(g.name)} as vMix shows it" src="/api/snap/input?key=${encodeURIComponent(g.key)}&t=${Math.floor(Date.now() / 1500)}" onerror="UC_snapFailed('${esc(g.key)}')"></div>`
+        : `<div class="mon chk mock" title="Mock-up: no picture from vMix (it must run on this PC)"><div class="l3">${lines}</div></div>`}
       ${on ? `<div class="tiny" style="color:var(--red-text)">On air: ${on}</div>` : ''}</div>`);
   }
 
@@ -274,7 +281,7 @@
       return `<div class="sec-body"><div class="bar music-bar ${m.playing ? 'playing' : ''}">${barTitle('music')}
         <div class="grow col" style="gap:2px"><span class="ellipsis" style="font-weight:700" class="${m.playing ? 'playing-text' : ''}"><span class="${m.playing ? 'playing-text' : ''}">${m.playing ? '▶' : '■'} ${esc(m.now || 'Nothing loaded')}</span></span>
         <span class="small muted ellipsis"><b class="${m.playing ? 'playing-text' : ''}">${status}</b> · <span class="mono">-${mmss(m.remaining)}</span> · next: ${esc(nextTxt)}</span></div>
-        <span class="bar-keys">${playBtn}${btn('FADE OUT', 'music.fadeout', {}, 'b-sm')}${levels([25, 50, 100])}${btn('NEXT', 'music.next', {})}${btn('KILL', 'music.kill', {}, 'b-red-soft')}</span></div></div>`;
+        <span class="bar-keys">${playBtn}${btn('FADE IN', 'music.fadein', {}, 'b-sm')}${btn('FADE OUT', 'music.fadeout', {}, 'b-sm')}${levels([25, 50, 100])}${btn('NEXT', 'music.next', {})}${btn('KILL', 'music.kill', {}, 'b-red-soft')}</span></div></div>`;
     }
     const pl = `<select class="grow" style="font-weight:700" data-cmd="music.playlist" data-key="name">${m.playlists.map((p) => `<option value="${esc(p.name)}" ${p.name === m.playlist ? 'selected' : ''}>${esc(p.name)}${p.kind === 'saved' ? ' (saved)' : ''}</option>`).join('') || '<option>No folders in Music</option>'}</select>`;
     const songs = m.songs.map((s) => `<div class="row"><button class="grow row" style="justify-content:space-between;font-weight:400;padding:7px 9px;${s.now ? 'border-color:var(--green)' : ''}" data-cmd="music.play" data-args="${attr({ path: s.path })}" title="Play now"><span class="ellipsis">${esc(s.name)}</span><span class="mono muted small">${s.now ? (m.playing ? 'PLAYING' : 'LOADED') : s.queued ? 'QUEUED' : s.seconds ? mmss(s.seconds) : ''}</span></button>${btn('+ Queue', 'music.queue', { path: s.path }, 'b-sm')}</div>`).join('') || '<span class="small muted">No songs in this playlist.</span>';
@@ -294,7 +301,7 @@
       <div class="col" style="gap:4px;max-height:260px;overflow-y:auto">${songs}</div>
       <div class="row">${levels([25, 50, 75, 100]).replace(/<button /g, '<button style="flex:1;padding:12px" ')}</div>
       <div class="row wrap small muted">Fade ${[['Cut', 0], ['1s', 1000], ['2s', 2000], ['4s', 4000]].map(([l, ms]) => chip(l, 'music.fadeTime', { ms }, m.fadeMs === ms)).join('')}<span class="grow"></span><span>Auto-duck under videos: on${m.ducked ? ' (ducked now)' : ''}</span></div>
-      <div class="row">${playBtn.replace('<button ', '<button style="flex:.8" ')}${btn('◀ PREV', 'music.prev', {}, '', 'style="flex:.8"')}${btn('NEXT ▶', 'music.next', {}, '', 'style="flex:.8"')}${btn('FADE OUT', 'music.fadeout', {}, '', 'style="flex:1"')}${btn('KILL', 'music.kill', {}, 'b-red-soft', 'style="flex:1"')}</div></div>`;
+      <div class="row">${playBtn.replace('<button ', '<button style="flex:.8" ')}${btn('◀ PREV', 'music.prev', {}, '', 'style="flex:.8"')}${btn('NEXT ▶', 'music.next', {}, '', 'style="flex:.8"')}${btn('FADE IN', 'music.fadein', {}, '', 'style="flex:1"')}${btn('FADE OUT', 'music.fadeout', {}, '', 'style="flex:1"')}${btn('KILL', 'music.kill', {}, 'b-red-soft', 'style="flex:1"')}</div></div>`;
   }
 
   /* ---------- mixer ---------- */
@@ -387,7 +394,7 @@
   document.addEventListener('keydown', (e) => {
     if (e.repeat || e.target.matches('input, select, textarea') || e.ctrlKey || e.metaKey || e.altKey) return; // holding a key must not repeat TAKE
     const g = S && (S.graphics.items.find((x) => x.id === ui.gfx) || S.graphics.items[0]);
-    const map = { ' ': ['music.toggle'], f: ['music.fadeout'], n: ['music.next'], t: g ? ['gfx.take', { id: g.id }] : null, o: g ? ['gfx.out', { id: g.id }] : null, c: ['video.next'], p: ['video.playpause'] };
+    const map = { ' ': ['music.toggle'], i: ['music.fadein'], f: ['music.fadeout'], n: ['music.next'], t: g ? ['gfx.take', { id: g.id }] : null, o: g ? ['gfx.out', { id: g.id }] : null, c: ['video.next'], p: ['video.playpause'] };
     const a = map[e.key.toLowerCase()];
     if (a) { e.preventDefault(); cmd(a[0], a[1] || {}); }
   });

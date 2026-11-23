@@ -137,7 +137,8 @@ module.exports = (engine) => {
     const i = inp(); if (!i) return { ok: false, error: 'Music player not linked' };
     clearTimeout(fadeTimer); fadeTimer = null;
     if (level !== undefined && Number.isFinite(Number(level))) cfg().level = Math.max(0, Math.min(100, Number(level)));
-    if (!i.list.length || !L.indexOf(i, now)) return playTrack(candidate(), { fadeIn: true });
+    if (playing()) return engine.fn('SetVolumeFade', { Input: i.key, Value: cfg().level + ',' + cfg().fadeMs });   // already playing: just bring the level up
+    if (!i.list.length || !L.indexOf(i, now) || listPending) return playTrack(now && L.indexOf(i, now) && !listPending ? now : candidate(), { fadeIn: true });
     await engine.fn('SetVolume', { Input: i.key, Value: 0 });
     await engine.fn('Play', { Input: i.key });
     await engine.fn('SetVolumeFade', { Input: i.key, Value: cfg().level + ',' + cfg().fadeMs });
@@ -192,7 +193,17 @@ module.exports = (engine) => {
   engine.cmd('music.fadeTime', ({ ms }) => { cfg().fadeMs = Math.max(0, Number(ms) || 0); engine.save(); return { ok: true }; });
   engine.cmd('music.after', ({ value }) => { cfg().after = value === 'restart' ? 'restart' : 'next'; engine.save(); return { ok: true }; });
   engine.cmd('music.mode', ({ value }) => { cfg().mode = value === 'playlist' ? 'playlist' : 'single'; engine.save(); return { ok: true }; });
-  engine.cmd('music.playlist', async ({ name }) => { cfg().folder = name; engine.save(); await rescan(); return { ok: true }; });
+  engine.cmd('music.playlist', async ({ name }) => {
+    cfg().folder = name; engine.save(); await rescan();
+    // stopped: the new playlist's first song is ready right away (PLAY used to play the old song until NEXT was pressed).
+    // playing: the current song keeps going and the next one comes from the new playlist.
+    if (!playing() && songs.length && !songs.some((x) => L.norm(x.path) === L.norm(now))) {
+      if (listPending) await syncList(true);
+      await select(songs[0].path);
+    }
+    engine.changed();
+    return { ok: true };
+  });
   engine.cmd('music.queue', ({ path: p }) => { if (p && !queue.some((q) => L.norm(q) === L.norm(p))) queue.push(p); return { ok: true }; });
   engine.cmd('music.unqueue', ({ index }) => { queue.splice(Number(index), 1); return { ok: true }; });
   engine.cmd('music.moveQueue', ({ from, to }) => { const [x] = queue.splice(Number(from), 1); if (x) queue.splice(Number(to), 0, x); return { ok: true }; });

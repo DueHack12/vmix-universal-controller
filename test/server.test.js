@@ -145,3 +145,17 @@ test('security settings: only from this PC, PIN must be digits; log file downloa
   r = await req('GET', '/api/log');
   assert.equal(r.status, 200); assert.match(r.body, /Started version/);
 });
+
+test('graphic preview: the real picture vMix saves (SnapshotInput) is served for an input', async () => {
+  let key = null;
+  for (let k = 0; k < 40 && !key; k++) {   // wait for the first vMix poll
+    const st = (await req('GET', '/api/state')).json;
+    const g = st && st.graphics && st.graphics.items[0]; if (g) key = g.key; else await new Promise((r) => setTimeout(r, 100));
+  }
+  assert.ok(key, 'a GT title from the fake vMix');
+  const r = await req('GET', '/api/snap/input?key=' + encodeURIComponent(key));
+  assert.equal(r.status, 200);
+  assert.equal(r.headers['content-type'], 'image/png');
+  assert.ok(mock.state().calls.some((c) => c.fn === 'SnapshotInput' && c.Input === key), 'asked vMix for the picture');
+  assert.equal((await req('GET', '/api/snap/input?key=not-an-input')).status, 404);
+});

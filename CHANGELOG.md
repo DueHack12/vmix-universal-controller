@@ -6,11 +6,16 @@ The release workflow uses the section for the tag's version as the release notes
 ## [Unreleased]
 
 ### Added
+- **Real graphic preview:** the picture of the selected title comes from vMix itself (SnapshotInput), so you see exactly what vMix has; the mock-up is only a fallback.
+- **FADE IN** for music (control page, iPad, key `I`, Companion `/console/music/fade/in`); on a playing song it just brings the level back up.
+- **Ad transitions:** GO TO AD BREAK can dip through black straight to the ads; BACK TO GAME can fade or dip through black to the game camera (Master › Ads › GO / BACK TO GAME, with a dip/fade time).
 - **Live scoreboard from ScoreReader** (the scoreboard NUC): strip on the control page, the whole feed in Master › Setup, a "Scoreboard (ScoreReader), live" field source, Companion feedback.
 - **vMix Graphics Controller:** game info, its titles with a GC tag and Edit ↗ link, its fields locked, titles not in vMix listed (INTEGRATION.md v6).
 - FPGT suite look, with the Graphics Controller's exact keys.
 
 ### Fixed
+- Graphics OUT: decided from what vMix shows right now; a title still on air after OUT is switched off instantly; a graphic on Program (not an overlay) gets a clear message.
+- Music: picking another playlist while stopped makes its first song ready (PLAY used to play the old song until NEXT).
 - A malformed OSC packet could freeze the whole program. It is now rejected.
 - CANCEL pressed as the ad countdown hit 0 was ignored (the break still went to Preview); BACK TO GAME and loading a show had the same gap.
 - Pressing GO twice quickly (or Stream Deck + page) put every ad in the vMix list twice.

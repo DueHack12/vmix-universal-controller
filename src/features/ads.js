@@ -122,13 +122,26 @@ module.exports = (engine) => {
       if (stale()) return;
       await engine.fn('SelectIndex', { Input: i.key, Value: 1 });
       if (stale()) return;
-      await engine.fn('PreviewInput', { Input: i.key });
+      if (cfg().goTransition === 'dip') await dipTo(i.key, true);   // through black straight to the ads on Program
+      else await engine.fn('PreviewInput', { Input: i.key });       // the director takes them
       if (stale()) return;
       current = { id: b.id, startedAt: 0, lastIndex: 0 };
       phase = 'cued';
     } catch (e) {
       if (!stale()) { phase = 'idle'; engine.log('GO TO AD BREAK failed: ' + e.message, true); }
     } finally { starting = false; engine.changed(); }
+  }
+  const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+  const dipMs = () => Math.max(200, Number(cfg().dipMs) || 1000);
+  /** fade Program to black (vMix Fade To Black), switch to the input while black, fade back up. Set vMix's own
+   *  Fade To Black time to match "Dip time" (Master › Ads). */
+  async function dipTo(key, play) {
+    if (!(engine.snap && engine.snap.fadeToBlack)) await engine.fn('FadeToBlack');
+    await wait(dipMs() + 150);
+    await engine.fn('CutDirect', { Input: key });
+    if (play) await engine.fn('Play', { Input: key });
+    await wait(200);
+    await engine.fn('FadeToBlack');
   }
   /** stop a countdown or a break that is still starting */
   function abort() { gen++; clearInterval(countTimer); countTimer = null; }
@@ -163,9 +176,15 @@ module.exports = (engine) => {
   engine.cmd('ads.back', async () => {
     abort();
     const i = adsInput(); const btg = cfg().backToGame || {};
-    if (i && btg.stopAds !== false) await engine.fn('Pause', { Input: i.key });
+    const smooth = btg.action === 'fade' || btg.action === 'dip';   // keep the ad moving under the transition, pause it after
+    if (i && btg.stopAds !== false && !smooth) await engine.fn('Pause', { Input: i.key });
     const cam = engine.input('gameCam');
-    if (cam) await engine.fn(btg.action === 'cut' ? 'CutDirect' : 'PreviewInput', { Input: cam.key });
+    if (cam) {
+      if (btg.action === 'dip') await dipTo(cam.key, false);
+      else if (btg.action === 'fade') { await engine.fn('Fade', { Input: cam.key, Duration: dipMs() }); await wait(dipMs() + 100); }
+      else await engine.fn(btg.action === 'cut' ? 'CutDirect' : 'PreviewInput', { Input: cam.key });
+    }
+    if (i && btg.stopAds !== false && smooth) await engine.fn('Pause', { Input: i.key });
     const music = engine.features.music;
     if (music) await music.fadeIn(btg.musicLevel ?? engine.show.music.level);
     const b = current ? findBreak(current.id) : null;
@@ -227,7 +246,9 @@ module.exports = (engine) => {
   engine.cmd('ads.settings', (a) => {
     if (a.countdown !== undefined) cfg().countdown = Math.max(0, Number(a.countdown) || 0);
     if (a.skipRecentBreaks !== undefined) cfg().skipRecentBreaks = Math.max(0, Number(a.skipRecentBreaks) || 0);
-    if (a.backAction) cfg().backToGame.action = a.backAction === 'cut' ? 'cut' : 'preview';
+    if (a.backAction) cfg().backToGame.action = ['cut', 'fade', 'dip'].includes(a.backAction) ? a.backAction : 'preview';
+    if (a.goTransition) cfg().goTransition = a.goTransition === 'dip' ? 'dip' : 'preview';
+    if (a.dipMs !== undefined && Number.isFinite(Number(a.dipMs))) cfg().dipMs = Math.max(200, Math.min(5000, Number(a.dipMs)));
     if (a.backMusicLevel !== undefined) cfg().backToGame.musicLevel = Number(a.backMusicLevel);
     if (a.basePath !== undefined) cfg().basePath = String(a.basePath).trim();
     engine.save(); return { ok: true };
@@ -276,7 +297,7 @@ module.exports = (engine) => {
         linked: !!i,
         folders: cfg().folders, looseFolder: cfg().looseFolder, sponsorFolders: cfg().sponsorFolders,
         countdown: cfg().countdown, skipRecentBreaks: cfg().skipRecentBreaks, basePathSetting: cfg().basePath || '',
-        backToGame: cfg().backToGame,
+        backToGame: cfg().backToGame, goTransition: cfg().goTransition || 'preview', dipMs: dipMs(),
         gameCam: (engine.input('gameCam') || {}).title || '',
         breaks: breaks().map((x) => ({ id: x.id, name: x.name, target: x.target, played: x.played, count: x.items.length, total: Math.round(x.items.reduce((s, p) => s + secsOf(p), 0)) })),
         items: b ? b.items.map((p, k) => {

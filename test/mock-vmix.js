@@ -68,14 +68,16 @@ function selectItem(i, idx) {
   i.selectedIndex = idx; i.position = 0; i.duration = durFor(i.list[idx - 1].path);
 }
 
+// a small 16:9 picture the fake vMix saves for SnapshotInput (real vMix saves the input as it looks)
+const SNAP_PNG = 'iVBORw0KGgoAAAANSUhEUgAAAKAAAABaCAIAAACwpMoFAAAAtklEQVR42u3ZMREAMAgEQSREAAUK4l9CZMUCNezMKfgtPzJLgwsTABZgARZgARZgAQYswAIswAIswAIMWIAFWIAFWIAFWIABC7AAC7AAC7AAAxZgARZgARZgAQYswAIswAIswAIswIAFWIAFWIAFWIABC7AAC7AAC7AAA7YCYI0FfueqH2DAgAEDBgwYMGDAgAELMGDAgAEDBgwYMGC5CwVYgAVYgAUYsBUAC7AAC7AAC7AA7+kDYtDTucbLWuMAAAAASUVORK5CYII=';
 function run(fn, p) {
   S.calls.push({ fn, ...p, t: Date.now() });
   const i = findInput(p.Input);
   const v = p.Value;
-  const ov = /^OverlayInput([1-4])(In|Out|)$/.exec(fn);
+  const ov = /^OverlayInput([1-4])(In|Out|Off|)$/.exec(fn);
   if (ov) {
     const k = Number(ov[1]) - 1;
-    if (ov[2] === 'Out') S.overlays[k] = 0;
+    if (ov[2] === 'Out' || ov[2] === 'Off') S.overlays[k] = 0;
     else if (ov[2] === 'In') S.overlays[k] = i ? i.number : 0;
     else S.overlays[k] = S.overlays[k] && (!i || S.overlays[k] === i.number) ? 0 : (i ? i.number : 0);
     return;
@@ -88,7 +90,9 @@ function run(fn, p) {
     }
     case 'PreviewInput': if (i) S.preview = i.number; return;
     case 'CutDirect': case 'ActiveInput': if (i) { S.active = i.number; } return;
-    case 'Cut': case 'Fade': { const a = S.active; S.active = S.preview; S.preview = a; return; }
+    case 'Cut': case 'Fade': { if (i) { S.active = i.number; return; } const a = S.active; S.active = S.preview; S.preview = a; return; }
+    case 'FadeToBlack': S.ftb = !S.ftb; return;
+    case 'SnapshotInput': if (v) { try { require('fs').writeFileSync(v, Buffer.from(SNAP_PNG, 'base64')); } catch { /* bad path */ } } return;
     case 'Play': if (i) i.state = 'Running'; return;
     case 'Pause': if (i) i.state = 'Paused'; return;
     case 'PlayPause': if (i) i.state = i.state === 'Running' ? 'Paused' : 'Running'; return;
@@ -156,7 +160,7 @@ function xml() {
   const ovs = S.overlays.map((v, k) => (v ? `<overlay number="${k + 1}">${v}</overlay>` : `<overlay number="${k + 1}" />`)).join('');
   const recDur = S.recording ? Math.floor((Date.now() - S.recStart) / 1000) : 0;
   const mlev = Math.min(1, S.inputs.reduce((s, i) => s + meter(i) * (i.audiobusses.includes('M') ? 1 : 0), 0));
-  return `<vmix><version>29.0.0.0</version><edition>4K</edition><inputs>${inputs}</inputs><overlays>${ovs}</overlays><preview>${S.preview}</preview><active>${S.active}</active><fadeToBlack>False</fadeToBlack><recording duration="${recDur}">${S.recording ? 'True' : 'False'}</recording><external>False</external><streaming>${S.streaming ? 'True' : 'False'}</streaming><audio><master volume="${reported(S.master.volume)}" muted="False" meterF1="${mlev.toFixed(4)}" meterF2="${mlev.toFixed(4)}" headphonesVolume="74" /></audio></vmix>`;
+  return `<vmix><version>29.0.0.0</version><edition>4K</edition><inputs>${inputs}</inputs><overlays>${ovs}</overlays><preview>${S.preview}</preview><active>${S.active}</active><fadeToBlack>${S.ftb ? 'True' : 'False'}</fadeToBlack><recording duration="${recDur}">${S.recording ? 'True' : 'False'}</recording><external>False</external><streaming>${S.streaming ? 'True' : 'False'}</streaming><audio><master volume="${reported(S.master.volume)}" muted="False" meterF1="${mlev.toFixed(4)}" meterF2="${mlev.toFixed(4)}" headphonesVolume="74" /></audio></vmix>`;
 }
 
 function createServer() {

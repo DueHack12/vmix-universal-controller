@@ -160,6 +160,27 @@ test('music: PLAY during a fade-out keeps the song going', { skip: !hasFfmpeg },
   await engine.run('music.kill');
 });
 
+test('music: picking another playlist while stopped makes its first song ready; FADE IN keeps a playing song', { skip: !hasFfmpeg }, async () => {
+  await engine.run('music.kill');
+  const start = engine.show.music.folder;
+  let other = null;
+  for (const n of engine.state().music.playlists.filter((x) => x.kind === 'folder').map((x) => x.name)) {
+    if (n === start) continue;
+    await engine.run('music.playlist', { name: n });
+    if (engine.state().music.songs.length) { other = n; break; }
+  }
+  if (!other) return;
+  const first = engine.state().music.songs[0];
+  assert.equal(engine.state().music.now, first.name, 'first song of the new playlist is ready');
+  await engine.run('music.play');
+  assert.ok(await until(() => engine.state().music.playing));
+  const from = mock.state().calls.length;
+  await engine.run('music.fadein');
+  const musicKey = mock.state().inputs.find((i) => i.title === 'MUSIC').key;
+  assert.ok(!mock.state().calls.slice(from).some((c) => (c.fn === 'Play' || c.fn === 'SelectIndex') && c.Input === musicKey), 'FADE IN on a playing song does not restart it');
+  await engine.run('music.kill');
+});
+
 test('ads: fill, GO countdown, cued to Preview, plays on Program, timers, back to game', { skip: !hasFfmpeg }, async () => {
   assert.ok(await until(() => engine.state().ads.library.length >= 5), 'ad library scanned');
   engine.show.ads.countdown = 1;
@@ -206,6 +227,49 @@ test('ads: CANCEL right at 0 really cancels; a double GO sends the ads once', { 
   assert.equal(adsIn().list.length, engine.show.ads.breaks.find((x) => x.id === engine.state().ads.selected).items.length, 'each ad once');
   await engine.run('ads.back');
   engine.show.ads.countdown = 5;
+});
+
+test('ads: GO through black and BACK TO GAME with a fade', { skip: !hasFfmpeg }, async () => {
+  const adsIn = () => mock.state().inputs.find((i) => i.title === 'ADS');
+  await engine.run('ads.settings', { goTransition: 'dip', backAction: 'fade', dipMs: 200 });
+  engine.show.ads.countdown = 0;
+  await engine.run('ads.back');   // a clean start: game camera on Program, no break running
+  await engine.fn('CutDirect', { Input: mock.state().inputs[0].key }); await engine.refresh();
+  const from = mock.state().calls.length;
+  assert.equal((await engine.run('ads.go')).ok, true);
+  assert.ok(await until(() => mock.state().active === adsIn().number && mock.state().ftb === false && mock.state().calls.slice(from).filter((c) => c.fn === 'FadeToBlack').length === 2, 5000), 'ads on Program, picture back up');
+  const calls = mock.state().calls.slice(from).map((c) => c.fn);
+  assert.equal(calls.filter((f) => f === 'FadeToBlack').length, 2, 'down to black and back up');
+  assert.ok(calls.indexOf('CutDirect') > calls.indexOf('FadeToBlack'), 'cut while black');
+  assert.equal(mock.state().ftb, false, 'picture back up');
+  await engine.run('ads.back');
+  const cam = mock.state().inputs.find((i) => i.title.startsWith('Cam 1'));
+  assert.equal(mock.state().active, cam.number, 'faded to the game camera');
+  assert.ok(mock.state().calls.slice(from).some((c) => c.fn === 'Fade' && c.Input === cam.key));
+  await engine.run('ads.settings', { goTransition: 'preview', backAction: 'preview' });
+  await engine.fn('Pause', { Input: adsIn().key }); await engine.refresh();
+  engine.show.ads.countdown = 5;
+});
+
+test('graphics OUT: switched off if still on air; refused with a reason when it is on Program', async () => {
+  const g = engine.state().graphics.items.find((x) => x.id === 'genl3');
+  const gi = inputBy('GenL3.gtzip');
+  await engine.run('gfx.take', { id: 'genl3' });
+  assert.ok(await until(() => engine.state().graphics.items.find((x) => x.id === 'genl3').onAir));
+  const ov = mock.state().overlays.findIndex((n) => n === gi.number);
+  // a title whose out-animation hangs: the fake vMix ignores the next "Out" once
+  const real = mock.state().overlays; let ignored = false;
+  const origPush = mock.state().calls.push.bind(mock.state().calls);
+  mock.state().calls.push = (c) => { if (!ignored && c.fn === 'OverlayInput' + (ov + 1) + 'Out') { ignored = true; setImmediate(() => { real[ov] = gi.number; }); } return origPush(c); };
+  await engine.run('gfx.out', { id: 'genl3' });
+  assert.ok(await until(() => !engine.state().graphics.items.find((x) => x.id === 'genl3').onAir, 4000), 'off after the check');
+  assert.ok(mock.state().calls.some((c) => c.fn === 'OverlayInput' + (ov + 1) + 'Off'), 'switched off instantly');
+  delete mock.state().calls.push;
+  // on Program, not an overlay
+  await engine.fn('CutDirect', { Input: g.key }); await engine.refresh();
+  const r = await engine.run('gfx.out', { id: 'genl3' });
+  assert.equal(r.ok, false); assert.match(r.error, /Program/);
+  await engine.fn('CutDirect', { Input: mock.state().inputs[0].key }); await engine.refresh();
 });
 
 test('ads: cancel countdown, add and remove break playlists', { skip: !hasFfmpeg }, async () => {
