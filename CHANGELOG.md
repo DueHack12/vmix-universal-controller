@@ -29,6 +29,7 @@ The release workflow uses the section for the tag's version as the release notes
 - Start page: required steps that aren't done are red, optional extras grey (they were the other way round); a new install shows its Default show.
 - Show names keep emoji and "/" in the list (the file name is still made safe).
 - iPad remote: CUE NEXT is disabled when nothing is queued.
+- Graphics Controller address: typing the editor port (`:3000`) or just the IP now uses the read-only port `:3001`; a PIN error (HTTP 401) says to use port 3001.
 
 ## [0.2.0-beta] - 2026-11-13
 

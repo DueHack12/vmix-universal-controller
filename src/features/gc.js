@@ -66,7 +66,7 @@ module.exports = (engine) => {
   let titles = null; let titlesOk = false; let polls = 0;
   let game = null; let ok = false; let error = ''; let busy = false; let lastSport = null;
   // the first build defaulted to :3000, which only answers on the Graphics Controller's own computer
-  if (/^http:\/\/(127\.0\.0\.1|localhost):3000\/?$/.test(engine.store.config.gcUrl || '')) { engine.store.config.gcUrl = 'http://127.0.0.1:3001'; engine.store.saveConfig(); }
+  if (/^https?:\/\/[^/]+:3000\/?$/.test(engine.store.config.gcUrl || '')) { engine.store.config.gcUrl = engine.store.config.gcUrl.replace(/:3000\/?$/, ':3001'); engine.store.saveConfig(); }
   const base = () => String(engine.store.config.gcUrl || '').replace(/\/+$/, '');
 
   async function refresh() {
@@ -85,7 +85,7 @@ module.exports = (engine) => {
         lastSport = g.sport;
         if (engine.show.sport !== g.sport) { engine.show.sport = g.sport; engine.save(); }
       }
-    } catch (e) { ok = false; error = e.message; }
+    } catch (e) { ok = false; error = /HTTP 401/.test(e.message) ? 'asks for a PIN (HTTP 401): that is the editor port, use port 3001' : e.message; }
     finally { busy = false; engine.changed(); }
   }
 
@@ -112,6 +112,14 @@ module.exports = (engine) => {
   let timer = null;
   engine.cmd('gc.refresh', async () => { polls = 0; await refresh(); return { ok, error }; });
   engine.cmd('gc.set', async ({ url, followSport }) => {
+    if (url !== undefined) {
+      let u = String(url || '').trim();
+      if (u && !/^https?:\/\//.test(u)) u = 'http://' + u;
+      // :3000 is GC's editor (PIN-protected); vMix UC reads the read-only port 3001
+      u = u.replace(/^(https?:\/\/[^/]+):3000(\/.*)?$/, '$1:3001').replace(/\/+$/, '');
+      if (u && !/^https?:\/\/[^/]+:\d+/.test(u)) u += ':3001';
+      url = u;
+    }
     if (url !== undefined) { engine.store.config.gcUrl = String(url || '').trim(); lastSport = null; polls = 0; if (!engine.store.config.gcUrl) { game = null; titles = null; } }
     if (followSport !== undefined) engine.store.config.gcFollowSport = followSport === true || Number(followSport) === 1;
     engine.store.saveConfig(); await refresh(); return { ok: true };
