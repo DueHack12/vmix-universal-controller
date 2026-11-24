@@ -224,9 +224,9 @@ Feedback: /fb/youtube/live · /fb/youtube/viewers · /fb/mix/selected · /fb/mix
   async function setSecurity(url, body) {
     try {
       const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-      const j = await r.json(); BC.toast(j.ok ? 'Saved' : j.error || 'Not saved');
+      const j = await r.json(); BC.toast(j.ok ? 'Saved' : j.error || 'Not saved', j.ok ? 'ok' : 'bad');
       if (j.ok && $('pin')) $('pin').value = '';
-    } catch (e) { BC.toast('Not saved: ' + e.message); }
+    } catch (e) { BC.toast('Not saved: ' + e.message, 'bad'); }
   }
 
   const R = { setup, graphics, ads, music, mixer, stream, layout, companion, shows };

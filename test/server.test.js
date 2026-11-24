@@ -159,3 +159,11 @@ test('graphic preview: the real picture vMix saves (SnapshotInput) is served for
   assert.ok(mock.state().calls.some((c) => c.fn === 'SnapshotInput' && c.Input === key), 'asked vMix for the picture');
   assert.equal((await req('GET', '/api/snap/input?key=not-an-input')).status, 404);
 });
+
+test('monitors: Program (vMix Snapshot) and Preview pictures are served', async () => {
+  const pgm = await req('GET', '/api/snap/pgm');
+  assert.equal(pgm.status, 200); assert.equal(pgm.headers['content-type'], 'image/png');
+  assert.ok(mock.state().calls.some((c) => c.fn === 'Snapshot' && c.Value), 'asked vMix to save Program');
+  const pvw = await req('GET', '/api/snap/pvw');
+  assert.equal(pvw.status, 200);
+});

@@ -39,8 +39,8 @@
   const btn = (label, c, args, cls = '', extra = '') => `<button class="${cls}" data-cmd="${c}" data-args="${attr(args)}"${tip(c)} ${extra}>${label}</button>`;
   const hold = (label, c, args, cls = '') => `<button class="hold ${cls}" data-hold data-cmd="${c}" data-args="${attr(args)}"${tip(c)} title="Press and hold">${label}<span class="hint">hold</span></button>`;
   const ui_ = (label, key, cls = '') => `<button class="${cls}" data-ui="${esc(key)}">${label}</button>`;
-  const head = (k, summary, color) => `<button class="sec-head" data-ui="toggle:${k}" aria-expanded="true"><span class="chev">▾</span><span class="sec-title">${SECS[k]}</span><span class="help" title="${esc(HELP[k])}">?</span><span class="grow ellipsis small" style="text-align:right;color:${color || 'var(--muted)'}">${esc(summary || '')}</span></button>`;
-  const barTitle = (k) => `<button class="bar-title" data-ui="toggle:${k}" aria-expanded="false"><span class="chev">▸</span><span class="sec-title">${k === 'stream' ? 'STREAM' : SECS[k]}</span></button>`;
+  const head = (k, summary, color) => `<button class="sec-head" data-ui="toggle:${k}" aria-expanded="true"><span class="chev">▾</span><span class="sec-title">${SECS[k]}</span>${tdot(secTally(k))}<span class="help" title="${esc(HELP[k])}">?</span><span class="grow ellipsis small" style="text-align:right;color:${color || 'var(--muted)'}">${esc(summary || '')}</span></button>`;
+  const barTitle = (k) => `<button class="bar-title" data-ui="toggle:${k}" aria-expanded="false"><span class="chev">▸</span><span class="sec-title">${k === 'stream' ? 'STREAM' : SECS[k]}</span>${tdot(secTally(k))}</button>`;
   const HELP = {
     stream: 'Is the show healthy? vMix link, streaming, recording, drive space, program audio, linked inputs.',
     gfx: 'Pick a graphic, edit its text, TAKE it on air or take it OUT. Red means vMix confirms it is on air.',
@@ -50,6 +50,16 @@
     mix: 'MUTE takes a channel off the stream. LISTEN puts it in your headphones. Both = hear it, not live.',
   };
   const isOpen = (k) => (k in ui.open ? !!ui.open[k] : LAY.open.includes(k));
+  const ring = BC.ring;
+  /* tally dot: red = on Program / on air, green = in Preview */
+  const tdot = (t) => (t ? `<span class="tdot ${t}" title="${t === 'pgm' ? 'On Program (on air)' : 'In Preview'}"></span>` : '');
+  function secTally(k) {
+    if (!S) return '';
+    if (k === 'gfx') return S.graphics.items.some((x) => x.onAir) ? 'pgm' : '';
+    if (k === 'video') return S.videos.onAir ? 'pgm' : S.videos.inPreview ? 'pvw' : '';
+    if (k === 'ads') return S.ads.phase === 'break' ? 'pgm' : S.ads.phase === 'cued' ? 'pvw' : '';
+    return '';
+  }
 
   /* ---------- header + banners ---------- */
   /** opens the vMix Graphics Controller; 127.0.0.1/localhost become this page's host so it works from other computers */
@@ -65,8 +75,9 @@
       <div class="logo">UC</div>
       <div class="grow ellipsis" style="font-weight:700">${esc(S.show.name)}</div>
       <span class="pill ${conn ? 'ok' : 'bad'}"><span class="dot" style="background:${conn ? 'var(--green)' : 'var(--red)'}"></span>vMix ${conn ? esc(S.vmix.version || '') : 'offline'}</span>
-      ${gcLink()}<a class="pill" href="/master" style="text-decoration:none">⚙ Master</a><button class="pill" data-ui="resetView" title="Back to the show's default open/closed sections">Reset view</button>
-      <a class="pill" href="/control?layout=${layout === 'vertical' ? 'horizontal' : 'vertical'}" style="text-decoration:none">${layout === 'vertical' ? '⇆ Horizontal' : '⇅ Vertical'}</a>
+      <span class="calm-hide row" style="gap:8px">${gcLink()}<a class="pill" href="/master" style="text-decoration:none">⚙ Master</a><button class="pill" data-ui="resetView" title="Back to the show's default open/closed sections">Reset view</button>
+      <a class="pill" href="/control?layout=${layout === 'vertical' ? 'horizontal' : 'vertical'}" style="text-decoration:none">${layout === 'vertical' ? '⇆ Horizontal' : '⇅ Vertical'}</a></span>
+      <button class="pill ${ui.focus ? 'focus-on' : ''}" data-ui="focus" title="Focus: hide setup links and help, quieter sections">${ui.focus ? '◉ Focus' : '○ Focus'}</button>
       <span class="${t.streaming ? 'tag-live' : 'tag-off'}">${t.streaming ? '● LIVE' : 'OFF AIR'}</span>
       ${rec}
       <span class="clock" id="clock"></span>`);
@@ -94,32 +105,65 @@
 
   function renderBanners() {
     const out = [];
-    if (S.ads.phase === 'count') out.push(`<div class="banner count" role="status"><span style="font-size:18px;letter-spacing:1px">AD BREAK IN</span><span class="n">${S.ads.count}</span><span class="small">music is fading · ads go to Preview at 0</span><span class="grow"></span>${btn('CANCEL', 'ads.cancel', {}, '', '')}</div>`);
+    if (S.ads.phase === 'count') out.push(`<div class="banner count" role="status"><span style="font-size:18px;letter-spacing:1px">AD BREAK IN</span>${ring(S.ads.count / Math.max(1, S.ads.countdown), '<b class="mono">' + S.ads.count + '</b>', 'var(--amber)', 58)}<span class="small">music is fading · ads go to Preview at 0</span><span class="grow"></span>${btn('CANCEL', 'ads.cancel', {}, '', '')}</div>`);
     if (!S.vmix.connected) out.push(`<div class="banner bad" role="alert">⚠ vMix NOT CONNECTED: buttons won't do anything until it's back <span class="grow"></span><span class="small" style="font-weight:600">${esc(S.vmix.host + ':' + S.vmix.port)} · ${esc(S.vmix.error || '')}</span></div>`);
     if (S.graphics.warn) out.push(`<div class="banner warn">⚠ ${esc(S.graphics.warn)}</div>`);
     patch(document.getElementById('banners'), out.join(''));
   }
 
-  /* ---------- graphic mock-up (no video pictures: those cost vMix time and weren't needed) ---------- */
-  /* the real picture of the graphic comes from vMix; after a failure, show the mock-up and try again in 15 s */
+  /* ---------- monitors: Program, Preview and the selected graphic, as pictures saved by vMix ----------
+     After a failed picture (vMix on another PC, or a moment's hiccup) that monitor shows text and retries in 15 s. */
   const snapFail = {};
-  const snapOk = (key) => !snapFail[key] || Date.now() - snapFail[key] > 15000;
-  window.UC_snapFailed = (key) => { if (snapOk(key)) { snapFail[key] = Date.now(); renderMon(); } };
-  setInterval(() => { if (S) renderMon(); }, 1500);   // refresh the picture even when nothing else changes
+  const snapOk = (k) => !snapFail[k] || Date.now() - snapFail[k] > 15000;
+  const snapPic = {};    // monitor key -> blob: URL of the last picture that loaded (shown until the next one is ready)
+  const snapWant = {};   // monitor key -> the address to fetch it from
+  let snapBusy = false;
+  /* every 1.5 s fetch the pictures the monitors show; swap each one in only when it has loaded, so nothing flickers */
+  setInterval(async () => {
+    if (!S || snapBusy || document.hidden) return;
+    snapBusy = true;
+    try {
+      await Promise.all(Object.entries(snapWant).map(async ([k, url]) => {
+        if (!snapOk(k)) return;
+        try {
+          const r = await fetch(url + '&t=' + Date.now(), { cache: 'no-store' });
+          if (!r.ok) throw new Error('HTTP ' + r.status);
+          const u = URL.createObjectURL(await r.blob());
+          const old = snapPic[k]; snapPic[k] = u;
+          for (const img of document.querySelectorAll('img[data-snapk="' + CSS.escape(k) + '"]')) img.src = u;
+          if (old) setTimeout(() => URL.revokeObjectURL(old), 2000);
+        } catch { snapFail[k] = Date.now(); delete snapPic[k]; renderMon(); }
+      }));
+    } finally { snapBusy = false; }
+  }, 1500);
+  function monitor(kind, label, sub, src, failKey, fallback) {
+    snapWant[failKey] = src;
+    const pic = snapOk(failKey) && snapPic[failKey]
+      ? `<img class="snap" alt="${esc(label)}" data-snapk="${esc(failKey)}" src="${snapPic[failKey]}">`
+      : snapOk(failKey) ? `<img class="snap" alt="" data-snapk="${esc(failKey)}">` + fallback : fallback;
+    return `<div class="monbox ${kind}"><div class="mon-cap"><span class="mon-label">${esc(label)}</span>${kind === 'pgm' ? tdot('pgm') : kind === 'pvw' ? tdot('pvw') : kind.includes('on') ? tdot('pgm') : ''}<span class="tiny muted ellipsis">${esc(sub || '')}</span></div><div class="mon snapmon ${kind}">${pic}</div></div>`;
+  }
   function renderMon() {
+    for (const k of Object.keys(snapWant)) delete snapWant[k];   // only fetch what is on screen now
     const items = S.graphics.items;
     const g = items.find((x) => x.id === ui.gfx) || items[0]; // same graphic as the Graphics section
-    if (!g) return patch(document.getElementById('mon'), '');
-    const tf = g.fields.filter((f) => f.kind === 'text' && f.mode !== 'hidden');
-    const lines = tf.slice(0, 3).map((f, k) => (k && !f.value ? '' : `<div class="${k ? 'b' : 'a'}">${esc(f.value || g.name)}</div>`)).join('') || `<div class="a">${esc(g.name)}</div>`;
-    const on = items.filter((x) => x.onAir).map((x) => esc(x.name)).join(' · ');
-    patch(document.getElementById('mon'), `<div class="monitors one">
-      <div class="row" style="gap:8px"><span class="mon-label">GRAPHIC</span><select class="grow" data-ui-select="gfx" aria-label="Graphic to show">${items.map((x) => `<option value="${esc(x.id)}" ${x.id === g.id ? 'selected' : ''}>${esc(x.name)}${x.onAir ? ' (ON AIR)' : ''}</option>`).join('')}</select>
-        <span class="tiny" style="font-weight:800;color:${g.onAir ? 'var(--red-text)' : 'var(--muted)'}">${g.onAir ? '● ON AIR' : 'not live'}</span></div>
-      ${snapOk(g.key)
-        ? `<div class="mon snapmon"><img class="snap" alt="${esc(g.name)} as vMix shows it" src="/api/snap/input?key=${encodeURIComponent(g.key)}&t=${Math.floor(Date.now() / 1500)}" onerror="UC_snapFailed('${esc(g.key)}')"></div>`
-        : `<div class="mon chk mock" title="Mock-up: no picture from vMix (it must run on this PC)"><div class="l3">${lines}</div></div>`}
-      ${on ? `<div class="tiny" style="color:var(--red-text)">On air: ${on}</div>` : ''}</div>`);
+    const t = S.tally || {};
+    const textMon = (txt) => `<div class="mon-text">${esc(txt || '—')}</div>`;
+    let gfxMon = '';
+    if (g) {
+      const tf = g.fields.filter((f) => f.kind === 'text' && f.mode !== 'hidden');
+      const lines = tf.slice(0, 3).map((f, k) => (k && !f.value ? '' : `<div class="${k ? 'b' : 'a'}">${esc(f.value || g.name)}</div>`)).join('') || `<div class="a">${esc(g.name)}</div>`;
+      gfxMon = monitor(g.onAir ? 'gfx on' : 'gfx', 'Graphic', g.onAir ? '● on air' : 'not live', '/api/snap/input?key=' + encodeURIComponent(g.key), g.key, `<div class="mock-in"><div class="l3">${lines}</div></div>`);
+    }
+    const mons = ui.mons !== false;
+    const head = g ? `<div class="row" style="gap:8px"><span class="mon-label">GRAPHIC</span><select class="grow" data-ui-select="gfx" aria-label="Graphic to show">${items.map((x) => `<option value="${esc(x.id)}" ${x.id === g.id ? 'selected' : ''}>${x.onAir ? '🔴 ' : ''}${esc(x.name)}</option>`).join('')}</select>
+        <span class="tiny" style="font-weight:800;color:${g.onAir ? 'var(--red-text)' : 'var(--muted)'}">${g.onAir ? '● ON AIR' : 'not live'}</span>
+        <button class="pill calm-hide" data-ui="mons" title="Program / Preview pictures from vMix">${ui.mons === false ? '▢ PGM / PVW' : '▣ PGM / PVW'}</button></div>` : '';
+    patch(document.getElementById('mon'), `<div class="monitors one">${head}
+      <div class="monrow ${mons ? '' : 'solo'}">
+        ${mons ? monitor('pgm', 'Program', t.program, '/api/snap/pgm?x=1', 'pgm', textMon(t.program)) + monitor('pvw', 'Preview', t.preview, '/api/snap/pvw?x=1', 'pvw:' + (t.preview || ''), textMon(t.preview)) : ''}
+        ${gfxMon}
+      </div></div>`);
   }
 
   /* ---------- stream health ---------- */
@@ -150,13 +194,13 @@
   function renderGfx() {
     const L = S.graphics.items; const g = gfxSel();
     const on = L.filter((x) => x.onAir);
-    const opts = L.map((x) => `<option value="${esc(x.id)}" ${g && x.id === g.id ? 'selected' : ''}>${esc(x.group + ' › ' + x.name + (x.gc ? '  · GC' : '') + (x.onAir ? '   ● ON AIR' : ''))}</option>`).join('');
+    const opts = L.map((x) => `<option value="${esc(x.id)}" ${g && x.id === g.id ? 'selected' : ''}>${x.onAir ? '🔴 ' : ''}${esc(x.group + ' › ' + x.name + (x.gc ? '  · GC' : '') + (x.onAir ? '   ON AIR' : ''))}</option>`).join('');
     const sel = `<select class="grow" style="font-weight:700;font-size:14px" data-ui-select="gfx">${opts || '<option>No GT titles found in vMix</option>'}</select>`;
     const takeBtn = g ? `<button class="${g.onAir ? 'take-on' : 'take'}" data-cmd="gfx.take" data-args="${attr({ id: g.id })}">${g.onAir ? '● ON AIR' : 'TAKE'}</button>` : '';
     const outBtn = g ? btn('OUT', 'gfx.out', { id: g.id }) : '';
-    const checkBtn = g ? ui_('CHECK', 'check:' + g.id) : '';
-    const editBtn = g && g.gc ? BC.gcEdit(g.gc, 'Edit ↗') : '';
-    const chips = on.map((x) => `<button class="chip-on" data-cmd="gfx.out" data-args="${attr({ id: x.id })}" title="Click to take it out">${esc(x.name)} <span class="mono" style="font-weight:600">${mmss(x.onAirSecs)}</span> ✕</button>`).join('');
+    const checkBtn = g ? ui_('CHECK', 'check:' + g.id, 'k2') : '';
+    const editBtn = g && g.gc ? BC.gcEdit(g.gc, 'Edit ↗', 'pill k2') : '';
+    const chips = on.map((x) => `<button class="chip-on" data-cmd="gfx.out" data-args="${attr({ id: x.id })}" title="Click to take it out${x.autoOut ? ' (goes out by itself in ' + Math.max(0, x.autoOut - x.onAirSecs) + ' s)' : ''}">${esc(x.name)} ${x.autoOut ? ring(1 - x.onAirSecs / x.autoOut, '', 'var(--red)', 18) : ''}<span class="mono" style="font-weight:600">${mmss(x.onAirSecs)}</span> ✕</button>`).join('');
     const tallyLine = `<div class="row wrap"><span class="tiny" style="font-weight:800;letter-spacing:1px;color:${on.length ? 'var(--red-text)' : 'var(--muted)'}">${on.length ? '● ON AIR' : 'NOTHING ON AIR'}</span>${chips}<span class="grow"></span><span class="tiny" style="color:${on.length ? 'var(--red-text)' : 'var(--muted)'}">✓ vMix tally</span></div>`;
     if (!isOpen('gfx')) return `<div class="sec-body"><div class="tally ${on.length ? 'on' : ''}"><div class="bar">${barTitle('gfx')}${sel}${editBtn}${checkBtn}${takeBtn}${outBtn}</div>${tallyLine}</div></div>`;
     let meta = '';
@@ -189,7 +233,7 @@
         <div class="row"><span class="grow" style="font-weight:700">${esc(line)}</span><button class="b-red" data-ui="spTake:${esc(g.id)}">TAKE STAT POP</button></div></div>`;
     }
     return head('gfx', on.length ? 'ON AIR: ' + on.map((x) => x.name).join(', ') : 'Nothing on air', on.length ? 'var(--red-text)' : '') + `<div class="sec-body">
-      <div class="row">${sel}${editBtn}<a class="pill" href="/master#graphics" style="text-decoration:none">⚙ Manage</a></div>
+      <div class="row">${sel}${editBtn}<a class="pill calm-hide" href="/master#graphics" style="text-decoration:none">⚙ Manage</a></div>
       ${g && g.gc ? `<div class="tiny muted">Graphics Controller title <b style="color:var(--soft)">${esc(g.gc.name)}</b>: its fields are filled there. Edit opens it in the Graphics Controller.</div>` : ''}
       <div class="small" style="color:${g && g.replaces ? 'var(--amber)' : 'var(--muted)'}">${esc(meta)}</div>
       ${statpop}${fields}
@@ -202,7 +246,7 @@
     const v = S.videos;
     const status = v.now ? `<span style="font-weight:700;color:${v.running ? 'var(--red-text)' : 'var(--text)'}">${v.running ? '▶' : v.inPreview ? 'CUED' : '■'} ${esc(v.now)} · ${mmss(v.remaining)} left</span>` : '<span class="muted">Nothing cued</span>';
     const nextName = v.queue[0] ? v.queue[0].name : 'nothing queued';
-    const controls = `${btn('CUE NEXT', 'video.next', {}, 'b-green', v.queue.length ? '' : 'disabled')}${btn(v.running ? '❚❚' : '▶', 'video.playpause', {})}${btn('⟲', 'video.restart', {}, '', 'title="Restart"')}`;
+    const controls = `${btn('CUE NEXT', 'video.next', {}, 'b-green', v.queue.length ? '' : 'disabled')}${btn(v.running ? '❚❚' : '▶', 'video.playpause', {})}${btn('⟲', 'video.restart', {}, 'k2', 'title="Restart"')}`;
     if (!isOpen('video')) return `<div class="sec-body"><div class="bar">${barTitle('video')}<div class="grow col" style="gap:2px">${status}<span class="small muted ellipsis">Next: <b style="color:var(--text)">${esc(nextName)}</b> · ${v.queue.length} queued${v.pendingCue ? ' · waiting to cue ' + esc(v.pendingCue) : ''}</span></div>${controls}</div></div>`;
     const clips = v.clips.map((c) => {
       const col = c.status === 'playing' || c.status === 'on air' ? 'rgba(255,59,48,.6)' : c.status === 'cued' ? 'rgba(48,209,88,.55)' : c.status === 'queued' ? 'rgba(10,132,255,.55)' : 'var(--line)';
@@ -215,10 +259,10 @@
     const q = v.queue.map((x, i) => `<div class="qrow" style="background:${i === 0 ? 'var(--blue-soft)' : 'transparent'}"><span class="mono muted">${i + 1}</span><span class="ellipsis">${esc(x.name)}${x.folder !== v.folder ? ` <span class="tiny muted">· ${esc(x.folder)}</span>` : ''}</span><span class="mono muted">${x.seconds ? mmss(x.seconds) : ''}</span>${btn('✕', 'video.unqueue', { index: i }, 'b-sm', 'aria-label="Remove from queue"')}</div>`).join('') || '<span class="small muted">Queue is empty. Use “+ Queue” on a clip.</span>';
     return head('video', v.now ? (v.running ? 'Playing: ' : 'Cued: ') + v.now + ' · ' + mmss(v.remaining) + ' left · ' + v.queue.length + ' queued' : v.queue.length + ' queued', v.running ? 'var(--red-text)' : '') + `<div class="sec-body">
       <div class="row"><span class="small muted">Folder</span><select class="grow" data-cmd="video.folder" data-key="name">${v.folders.map((f) => `<option ${f === v.folder ? 'selected' : ''}>${esc(f)}</option>`).join('') || '<option>No folders in Videos</option>'}</select>
-        <label class="pill" style="cursor:pointer">⇪ Upload<input type="file" accept="video/*" multiple class="hide" data-upload></label>${btn('⟳', 'video.rescan', {}, 'b-sm', 'title="Rescan folder"')}</div>
+        <label class="pill calm-hide" style="cursor:pointer">⇪ Upload<input type="file" accept="video/*" multiple class="hide" data-upload></label>${btn('⟳', 'video.rescan', {}, 'b-sm', 'title="Rescan folder"')}</div>
       ${v.autoNextWarn ? '<div class="banner warn note small" role="alert">⚠ vMix moved to the next clip by itself. In vMix, right-click the VIDEOS input › Edit Items and turn OFF <b>Auto Next</b>.</div>' : ''}
       ${v.listPending ? '<div class="small muted">The vMix VIDEOS list switches to this folder once the video is off air.</div>' : ''}
-      <div class="drop" data-drop>Drop videos here to copy them into <b>Videos › ${esc(v.folder || '?')}</b> on the Drive</div>
+      <div class="drop calm-hide" data-drop>Drop videos here to copy them into <b>Videos › ${esc(v.folder || '?')}</b> on the Drive</div>
       <div class="grid4">${clips || '<span class="small muted">No videos in this folder.</span>'}</div>
       <div class="card col" style="gap:6px"><div class="row small"><b>PLAYLIST (${v.queue.length}${v.queueSeconds ? ' · ' + mmss(v.queueSeconds) : ''})</b><span class="muted grow">${v.autoCueNext ? 'when a clip ends, the next one plays (on air) or is cued to Preview (off air)' : 'auto-next is off: use CUE NEXT'}</span>
         <label class="small"><input type="checkbox" ${v.autoCueNext ? 'checked' : ''} data-cmd="video.autoCue" data-key="value"> auto-next</label>${v.queue.length ? btn('Clear', 'video.clearQueue', {}, 'b-sm') : ''}</div>
@@ -228,6 +272,14 @@
   }
 
   /* ---------- ads ---------- */
+  /** the break as a strip of blocks sized by length: played dimmed, the current one filling up */
+  function timeline(items, segs) {
+    if (!items || !items.length) return '';
+    return `<div class="timeline">${items.map((i, k) => {
+      const f = segs ? segs[k] || 0 : 0;
+      return `<div class="tl-blk ${i.state}" style="flex:${Math.max(5, i.seconds || 15)} 1 0" title="${esc(i.name)} · ${i.seconds ? mmss(i.seconds) : '?'}"><span class="tl-fill" style="width:${Math.round(f * 100)}%"></span><span class="tl-name ellipsis">${esc(i.name)}</span><span class="tl-len mono">${i.seconds ? mmss(i.seconds) : ''}</span></div>`;
+    }).join('')}</div>`;
+  }
   function renderAds() {
     const a = S.ads; const b = a.breaks.find((x) => x.id === a.selected);
     const bname = b ? b.name : 'No break playlist';
@@ -237,13 +289,14 @@
     else if (a.phase === 'cued') barBody = `<div class="grow col" style="gap:2px"><b style="color:var(--orange-text)">ADS IN PREVIEW · ${esc(bname)}</b><span class="small muted">Waiting for the director to take it. They start playing as soon as it's on Program.</span></div>${btn('BACK TO GAME', 'ads.back', {}, 'b-green')}`;
     else if ((a.phase === 'break' || a.phase === 'done') && a.timer) {
       const t = a.timer;
+      const cur = t.segments[t.index - 1] || 0;
       barBody = `<div class="grow col" style="gap:6px"><b style="color:var(--amber)">${a.phase === 'done' ? '✓ BREAK DONE' : '▶ AD ' + t.index + ' OF ' + t.count + ' · ' + esc(t.name)}</b>
-        <div class="segs">${t.segments.map((f) => `<span class="seg"><span style="width:${Math.round(f * 100)}%"></span></span>`).join('')}</div>
+        ${timeline(a.items, t.segments)}
         <span class="small">${a.phase === 'done' ? 'Press BACK TO GAME' : 'Next: <b>' + esc(t.next || 'back to game') + '</b>'}</span></div>
-        <div class="row" style="text-align:right;gap:14px"><div><div class="tiny muted" style="font-weight:800;letter-spacing:1px">THIS AD</div><div class="timer-big">${mmss(t.adLeft)}</div></div>
+        <div class="row" style="text-align:right;gap:14px"><div class="col" style="align-items:center;gap:2px"><div class="tiny muted" style="font-weight:800;letter-spacing:1px">THIS AD</div>${ring(a.phase === 'done' ? 0 : 1 - cur, '<b class="mono">' + mmss(t.adLeft) + '</b>', 'var(--amber)', 64)}</div>
         <div><div class="tiny muted" style="font-weight:800;letter-spacing:1px">BREAK LEFT</div><div class="timer-big" style="color:var(--orange-text)">${mmss(t.breakLeft)}</div></div></div>
         <div class="col" style="gap:6px">${btn('SKIP AD ⏭', 'ads.skip', {}, 'b-sm')}${btn('BACK TO GAME', 'ads.back', {}, 'b-green b-sm')}</div>`;
-    } else barBody = `<div class="grow col" style="gap:2px"><b>${esc(bname)} playlist · ${b ? b.count : 0} ads · ${mmss(b ? b.total : 0)}</b><span class="small ellipsis" style="color:var(--soft)">${esc(a.items.map((i) => i.name).join(' · ') || 'empty: open to fill it')}</span><span class="tiny muted">${a.countdown} s countdown, then music fades and ads go to Preview</span></div>${goBack}`;
+    } else barBody = `<div class="grow col" style="gap:2px"><b>${esc(bname)} playlist · ${b ? b.count : 0} ads · ${mmss(b ? b.total : 0)}</b>${a.items.length ? timeline(a.items, null) : '<span class="small ellipsis" style="color:var(--soft)">empty: open to fill it</span>'}<span class="tiny muted">${a.countdown} s countdown, then music fades and ads go to Preview</span></div>${goBack}`;
     if (!isOpen('ads')) return `<div class="sec-body"><div class="bar">${barTitle('ads')}${barBody}</div></div>`;
 
     const chips = a.breaks.map((x) => `<span class="chipgrp ${x.id === a.selected ? 'sel' : ''}"><button data-cmd="ads.select" data-args="${attr({ id: x.id })}">${esc(x.name)} · ${mmss(x.target)}${x.played ? ' ✓' : ''}</button><button data-cmd="ads.removeBreak" data-args="${attr({ id: x.id })}" data-confirm="Remove the ${esc(x.name)} break playlist? (Ad videos stay on the Drive.)" aria-label="Remove ${esc(x.name)}" style="color:var(--muted);border-left:1px solid var(--line2)">✕</button></span>`).join('');
@@ -274,14 +327,17 @@
   function renderMusic() {
     const m = S.music;
     const status = m.playing ? '▶ PLAYING' : m.now ? (m.after === 'restart' ? '■ STOPPED · reset to start' : '■ STOPPED · next track cued') : '■ STOPPED';
-    const levels = (list) => list.map((v) => btn(v + '%', 'music.level', { value: v }, m.level === v ? 'b-amber' : '')).join('');
+    const levels = (list) => list.map((v) => btn(v + '%', 'music.level', { value: v }, (m.level === v ? 'b-amber ' : '') + 'k2')).join('');
     const playBtn = btn(m.playing ? '❚❚' : '▶', 'music.toggle', {}, m.playing ? 'b-green' : '', 'style="font-size:15px;min-width:46px" aria-label="Play or pause"');
     const nextTxt = m.nextIsRestart ? 'same song from 0:00' : m.next || '—';
     if (!isOpen('music')) {
+      const pct = m.duration ? Math.min(100, (m.position / m.duration) * 100) : 0;
       return `<div class="sec-body"><div class="bar music-bar ${m.playing ? 'playing' : ''}">${barTitle('music')}
+        ${m.duration ? ring(m.remaining / m.duration, '', m.playing ? 'var(--green)' : 'var(--muted)', 30) : ''}
         <div class="grow col" style="gap:2px"><span class="ellipsis" style="font-weight:700" class="${m.playing ? 'playing-text' : ''}"><span class="${m.playing ? 'playing-text' : ''}">${m.playing ? '▶' : '■'} ${esc(m.now || 'Nothing loaded')}</span></span>
-        <span class="small muted ellipsis"><b class="${m.playing ? 'playing-text' : ''}">${status}</b> · <span class="mono">-${mmss(m.remaining)}</span> · next: ${esc(nextTxt)}</span></div>
-        <span class="bar-keys">${playBtn}${btn('FADE IN', 'music.fadein', {}, 'b-sm')}${btn('FADE OUT', 'music.fadeout', {}, 'b-sm')}${levels([25, 50, 100])}${btn('NEXT', 'music.next', {})}${btn('KILL', 'music.kill', {}, 'b-red-soft')}</span></div></div>`;
+        <span class="small muted ellipsis"><b class="${m.playing ? 'playing-text' : ''}">${status}</b> · <span class="mono">${mmss(m.position)} / ${mmss(m.duration)} · -${mmss(m.remaining)}</span> · next: ${esc(nextTxt)}</span></div>
+        <span class="bar-keys">${playBtn}${btn('FADE IN', 'music.fadein', {}, 'b-sm')}${btn('FADE OUT', 'music.fadeout', {}, 'b-sm')}${levels([25, 50, 100])}${btn('NEXT', 'music.next', {})}${btn('KILL', 'music.kill', {}, 'b-red-soft')}</span>
+        <div class="mprog" aria-hidden="true"><span style="width:${pct.toFixed(1)}%"></span></div></div></div>`;
     }
     const pl = `<select class="grow" style="font-weight:700" data-cmd="music.playlist" data-key="name">${m.playlists.map((p) => `<option value="${esc(p.name)}" ${p.name === m.playlist ? 'selected' : ''}>${esc(p.name)}${p.kind === 'saved' ? ' (saved)' : ''}</option>`).join('') || '<option>No folders in Music</option>'}</select>`;
     const songs = m.songs.map((s) => `<div class="row"><button class="grow row" style="justify-content:space-between;font-weight:400;padding:7px 9px;${s.now ? 'border-color:var(--green)' : ''}" data-cmd="music.play" data-args="${attr({ path: s.path })}" title="Play now"><span class="ellipsis">${esc(s.name)}</span><span class="mono muted small">${s.now ? (m.playing ? 'PLAYING' : 'LOADED') : s.queued ? 'QUEUED' : s.seconds ? mmss(s.seconds) : ''}</span></button>${btn('+ Queue', 'music.queue', { path: s.path }, 'b-sm')}</div>`).join('') || '<span class="small muted">No songs in this playlist.</span>';
@@ -318,14 +374,14 @@
       return `<div class="strip ${c.mode}">
         <div class="ellipsis sname" title="${esc(c.source || c.name)}">${esc(c.name)}</div>
         <div class="st" style="color:${c.missing ? 'var(--red)' : STATE_COL[c.mode]}">${c.missing ? 'INPUT MISSING' : STATE_TXT[c.mode]}</div>
-        <div class="meters"><div class="meter"><span data-meter-l="${id}" style="${mc}"></span></div><div class="meter"><span data-meter-r="${id}" style="${mc}"></span></div>
+        <div class="meters" title="Ticks: −20, −6 and 0 dB · the thin line holds the peak"><div class="meter"><span data-meter-l="${id}" style="${mc}"></span><i class="pk" data-peak-l="${id}"></i></div><div class="meter"><span data-meter-r="${id}" style="${mc}"></span><i class="pk" data-peak-r="${id}"></i></div>
           <input class="vfader" type="range" orient="vertical" min="0" max="100" step="1" data-fader="${id}" aria-label="${esc(c.name)} level"></div>
         <div class="mono tiny muted"><span data-vol="${id}"></span> · <span data-db="${id}"></span></div>
         <div class="mbtns">${c.master ? `<button class="${muted ? 'm-on' : ''}" data-cmd="mix.mute" data-args="${attr({ id: c.id })}" style="grid-column:span 2">MUTE</button>` : `<button class="${muted ? 'm-on' : ''}" data-cmd="mix.mute" data-args="${attr({ id: c.id })}">MUTE</button><button class="${lis ? 'l-on' : ''}" data-cmd="mix.listen" data-args="${attr({ id: c.id })}">LISTEN</button>`}</div>
         ${c.mic ? `<button class="${c.cough ? 'b-red-soft' : ''}" style="font-size:10px;padding:6px 0;width:100%" data-cmd="mix.cough" data-args="${attr({ id: c.id })}" title="NDI Audio Bridge cough (mic ${esc(c.mic)})">${c.cough ? 'COUGHED' : 'COUGH'}</button>` : ''}
-        ${open ? `<div class="row" style="gap:3px;width:100%">${btn('◀', 'mix.move', { id: c.id, to: k - 1 }, 'b-sm grow', k ? `aria-label="Move ${esc(c.name)} left"` : 'disabled')}${btn('✕', 'mix.remove', { id: c.id }, 'b-sm', `data-confirm="Remove the ${esc(c.name)} slider?" aria-label="Remove ${esc(c.name)}"`)}${btn('▶', 'mix.move', { id: c.id, to: k + 1 }, 'b-sm grow', k < X.channels.length - 1 ? `aria-label="Move ${esc(c.name)} right"` : 'disabled')}</div>` : ''}</div>`;
+        ${open ? `<div class="row calm-hide" style="gap:3px;width:100%">${btn('◀', 'mix.move', { id: c.id, to: k - 1 }, 'b-sm grow', k ? `aria-label="Move ${esc(c.name)} left"` : 'disabled')}${btn('✕', 'mix.remove', { id: c.id }, 'b-sm', `data-confirm="Remove the ${esc(c.name)} slider?" aria-label="Remove ${esc(c.name)}"`)}${btn('▶', 'mix.move', { id: c.id, to: k + 1 }, 'b-sm grow', k < X.channels.length - 1 ? `aria-label="Move ${esc(c.name)} right"` : 'disabled')}</div>` : ''}</div>`;
     }).join('');
-    const legend = '<span class="tiny muted"><b style="color:var(--red)">MUTE</b> off the stream · <b style="color:var(--amber)">LISTEN</b> in headphones · both = <b style="color:var(--accent)">listen, not live</b></span>';
+    const legend = '<span class="tiny muted calm-hide"><b style="color:var(--red)">MUTE</b> off the stream · <b style="color:var(--amber)">LISTEN</b> in headphones · both = <b style="color:var(--accent)">listen, not live</b></span>';
     const mutedCount = X.channels.filter((c) => c.mode === 'mute' || c.mode === 'mutelisten').length;
     if (!open) return `<div class="sec-body"><div class="bar">${barTitle('mix')}<span class="grow"></span>${legend}</div><div class="strips">${strips}</div></div>`;
     return head('mix', X.channels.length + ' channels · ' + mutedCount + ' muted') + `<div class="sec-body">${legend}<div class="strips big">${strips}</div>
@@ -338,6 +394,10 @@
     if (!S) return;
     buildCols();
     document.body.classList.toggle('beginner', !!S.config.beginner);
+    document.body.classList.toggle('focus', !!ui.focus);
+    // on-air glow: something this page controls is on Program (a graphic, a video, the ads)
+    const onAir = S.graphics.items.some((x) => x.onAir) || !!S.videos.onAir || S.ads.phase === 'break';
+    document.body.classList.toggle('onair', onAir);
     renderTop(); renderScoreStrip(); renderBanners(); renderMon();
     for (const k of Object.keys(R)) { const el = document.getElementById('sec-' + k); if (el) patch(el, R[k]()); }
     BC.mixLive(document.getElementById('sec-mix'), S.mixer.channels);
@@ -352,6 +412,8 @@
     const [k, v] = el.dataset.ui.split(':');
     if (k === 'toggle') { ui.open[v] = !isOpen(v); saveUi(); render(); }
     else if (k === 'resetView') { ui.open = {}; saveUi(); render(); }
+    else if (k === 'focus') { ui.focus = !ui.focus; saveUi(); render(); }
+    else if (k === 'mons') { ui.mons = ui.mons === false; saveUi(); render(); }
     else if (k === 'spSide') { ui.sp = { ...(ui.sp || {}), side: v, num: '', name: '' }; saveUi(); render(); }
     else if (k === 'spPlayer') { const [num, ...nm] = v.split('|'); ui.sp = { ...(ui.sp || {}), num, name: nm.join('|') }; saveUi(); render(); }
     else if (k === 'spEvent') { ui.sp = { ...(ui.sp || {}), event: v }; saveUi(); render(); }
@@ -380,10 +442,10 @@
   /* ---------- uploads ---------- */
   async function upload(files) {
     for (const f of files) {
-      BC.toast('Copying ' + f.name + ' to the Drive…');
+      BC.toast('Copying ' + f.name + ' to the Drive…', 'info');
       const r = await fetch('/api/upload?folder=' + encodeURIComponent(S.videos.folder || '') + '&name=' + encodeURIComponent(f.name), { method: 'POST', body: f });
       const j = await r.json().catch(() => ({}));
-      BC.toast(j.ok ? 'Added ' + j.file : 'Upload failed: ' + (j.error || r.status));
+      BC.toast(j.ok ? 'Added ' + j.file : 'Upload failed: ' + (j.error || r.status), j.ok ? 'ok' : 'bad');
     }
   }
   document.addEventListener('dragover', (e) => { const d = e.target.closest('[data-drop]'); if (d) { e.preventDefault(); d.classList.add('over'); } });

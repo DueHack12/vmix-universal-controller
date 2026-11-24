@@ -161,18 +161,20 @@ function upload(req, res, u) {
  * vMix's SnapshotInput saves a PNG of an input on vMix's own computer. vMix UC runs on that same PC, so it can read it
  * and show the actual title instead of a mock-up. One request per input at a time; a picture is reused for 1.5 s. */
 const snapJobs = new Map();
-async function snapshotInput(key) {
+async function snapshotInput(key) { return snapshot(String(key).replace(/[^\w-]/g, ''), 'SnapshotInput', { Input: key }); }
+/** name: file name in data/cache/snap; fn/params: the vMix function that saves it (Value = the file) */
+async function snapshot(name, fn, params) {
   if (!/^(127\.0\.0\.1|localhost|::1)$/i.test(String(store.config.vmix.host || '127.0.0.1'))) return null;   // vMix on another PC: its file isn't here
   const dir = path.join(dataDir, 'cache', 'snap');
   fs.mkdirSync(dir, { recursive: true });
-  const file = path.join(dir, String(key).replace(/[^\w-]/g, '') + '.png');
+  const file = path.join(dir, name + '.png');
   const stat = () => fs.statSync(file, { throwIfNoEntry: false });
   const st = stat();
   if (st && st.size && Date.now() - st.mtimeMs < 1500) return file;
   if (!snapJobs.has(file)) {
     const before = st ? st.mtimeMs : 0;
     snapJobs.set(file, (async () => {
-      try { await engine.vmix.fn('SnapshotInput', { Input: key, Value: file }); } catch { return; }
+      try { await engine.vmix.fn(fn, { ...params, Value: file }); } catch { return; }
       for (let k = 0; k < 15; k++) {   // vMix writes the file a moment after answering
         await new Promise((r) => setTimeout(r, 80));
         const s2 = stat(); if (s2 && s2.size && s2.mtimeMs > before) return;
@@ -238,6 +240,15 @@ async function handle(req, res) {
       const r = osc.route(p.slice(4), qa);
       if (!r) return send(res, 404, { ok: false, error: 'Unknown OSC path' });
       return send(res, 200, await engine.run(r[0], r[1]));
+    }
+    if (p === '/api/snap/pgm' || p === '/api/snap/pvw') {
+      // Program = vMix's whole output (overlays included); Preview = the input in Preview
+      const snap = engine.snap;
+      const pv = p.endsWith('pvw') && snap ? engine.inputByNumber(snap.preview) : null;
+      const f = p.endsWith('pgm') ? await snapshot('program', 'Snapshot', {}) : pv ? await snapshot('preview-' + pv.key.replace(/[^\w-]/g, ''), 'SnapshotInput', { Input: pv.key }) : null;
+      if (!f) return send(res, 404, 'no picture (vMix must run on this PC)', 'text/plain');
+      res.writeHead(200, { 'Content-Type': 'image/png', 'Cache-Control': 'no-store' });
+      return fs.createReadStream(f).pipe(res);
     }
     if (p === '/api/snap/input') {
       const key = u.searchParams.get('key') || '';

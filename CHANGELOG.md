@@ -6,6 +6,17 @@ The release workflow uses the section for the tag's version as the release notes
 ## [Unreleased]
 
 ### Added
+- **Live-show look:**
+  - a red frame round the page while a graphic, video or the ads are on Program;
+  - Program / Preview / Graphic monitors with pictures from vMix (switch with PGM / PVW);
+  - red/green tally dots on section titles and the graphics dropdown;
+  - keys light green when done and red when refused;
+  - mixer meters with −20/−6/0 dB ticks and a peak line that holds a second;
+  - countdown rings (ad countdown, this ad, song left, graphic auto-out);
+  - song time and length plus a progress line on the Music bar;
+  - the ad break as a timeline;
+  - **Focus** mode: hides setup links, help and editing controls; secondary keys on closed sections fade until you point at them;
+  - toasts the Graphics Controller way: bottom centre, frosted glass, errors stay until ✕.
 - **Real graphic preview:** the picture of the selected title comes from vMix itself (SnapshotInput), so you see exactly what vMix has; the mock-up is only a fallback.
 - **FADE IN** for music (control page, iPad, key `I`, Companion `/console/music/fade/in`); on a playing song it just brings the level back up.
 - **Ad transitions:** GO TO AD BREAK can dip through black straight to the ads; BACK TO GAME can fade or dip through black to the game camera (Master › Ads › GO / BACK TO GAME, with a dip/fade time).

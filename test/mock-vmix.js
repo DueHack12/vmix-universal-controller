@@ -92,7 +92,7 @@ function run(fn, p) {
     case 'CutDirect': case 'ActiveInput': if (i) { S.active = i.number; } return;
     case 'Cut': case 'Fade': { if (i) { S.active = i.number; return; } const a = S.active; S.active = S.preview; S.preview = a; return; }
     case 'FadeToBlack': S.ftb = !S.ftb; return;
-    case 'SnapshotInput': if (v) { try { require('fs').writeFileSync(v, Buffer.from(SNAP_PNG, 'base64')); } catch { /* bad path */ } } return;
+    case 'Snapshot': case 'SnapshotInput': if (v) { try { require('fs').writeFileSync(v, Buffer.from(SNAP_PNG, 'base64')); } catch { /* bad path */ } } return;
     case 'Play': if (i) i.state = 'Running'; return;
     case 'Pause': if (i) i.state = 'Paused'; return;
     case 'PlayPause': if (i) i.state = i.state === 'Running' ? 'Paused' : 'Running'; return;
