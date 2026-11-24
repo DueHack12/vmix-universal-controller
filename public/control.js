@@ -210,7 +210,7 @@
     const fields = g ? g.fields.filter((f) => f.mode !== 'hidden' && !spFields.includes(f.name)).map((f) => {
       const a = attr({ id: g.id, field: f.name });
       if (f.mode === 'locked' || (f.source !== 'typed' && f.source !== 'list')) {
-        const note = { fixed: 'fixed', ose: 'from OpenStatsEngine', logo: 'team logo', gc: 'game info', gcowned: 'from Graphics Controller', sb: 'live scoreboard' }[f.source] || 'locked';
+        const note = { fixed: 'fixed', ose: 'from OpenStatsEngine', logo: 'team logo', gc: 'game info', gcowned: 'from Graphics Controller', liveowned: 'from the scoreboard', sb: 'live scoreboard' }[f.source] || 'locked';
         return `<label class="field">${esc(f.label)}<span class="row"><input value="${esc(f.value)}" disabled class="grow"><span class="tiny muted">${note}</span></span></label>`;
       }
       if (f.source === 'list') {

@@ -76,6 +76,15 @@ module.exports = (engine) => {
         if (inp) { setLink(picking.job, inp.key); engine.log('Linked ' + picking.job + ' to "' + inp.title + '" (picked in vMix)'); }
         picking = null;
       }
+      // an input replaced in vMix (deleted and added again, e.g. a plain image swapped for a GT title with the same
+      // name) gets a new key: follow it by its title instead of losing the link
+      for (const [job, key] of Object.entries(engine.show.links)) {
+        if (snap.inputs.some((i) => i.key === key)) continue;
+        const title = (engine.show.linkTitles || {})[job];
+        const n = (t) => String(t || '').toLowerCase().replace(/\.gt(zip|xml)$/, '').trim();   // "Network ID" = "NETWORK ID.gtzip"
+        const same = title && snap.inputs.find((i) => n(i.title) === n(title));
+        if (same) { setLink(job, same.key); engine.log('Re-linked ' + job + ' to "' + title + '" (its vMix input was replaced)'); }
+      }
       // first connection with nothing linked: auto-match quietly
       if (!this.didAuto && Object.keys(engine.show.links).length === 0 && snap.inputs.length) {
         this.didAuto = true;

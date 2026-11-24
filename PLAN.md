@@ -1,6 +1,6 @@
 # FPGT broadcast tools: plan and status
 
-A handoff for continuing in another tool. Last updated 2026-11-21.
+A handoff for continuing in another tool. Last updated 2026-11-24.
 
 The project: **vMix Universal Controller (vMix UC / UC)**, a one-operator console for Fairfield Prep (FPGT) sports streams. It works alongside the **vMix Graphics Controller (GC)**, which has its own repo and its own chat.
 
@@ -48,6 +48,36 @@ The code is in this folder. It is also on GitHub at `DueHack12/vmix-universal-co
   - A change raises the version and adds a changelog line.
   - A chat that can't write to the Drive saves `INTEGRATION (proposed by <app>).md` next to it.
 - [x] `CLAUDE.md` in this repo carries that rule.
+
+---
+
+## Next big job: Stream Deck / Companion rework (vMix UC owns it)
+
+**First: get the Companion configuration.** Companion web page (`http://127.0.0.1:8000`) › Import / Export › **Export** (everything), giving a `.companionconfig` file. Or run a Claude Code session **on the vMix PC** that can read it directly.
+
+**Facts from the Graphics Controller chat (11/24):**
+- vMix preset `FOOTBALL 2026.vmix`. Inputs 45 (Graphics Mix), 49 (Mix4) and 50 (INTROVIDEO) were deleted, so everything after 45 moved down 1 (TIMEOUT PREP is now 46, TIMEOUT AWAY 47).
+  - **Every Companion vMix action using an input NUMBER is fragile.** Switch them all to input **names**.
+- **Don't renumber inputs 29–32:** SCOREBUG, HOME DOWN BG, AWAY DOWN BG and DOWN BOX COVER. The possession script uses them by number.
+- **Coming:**
+  - a GT title **NETWORK ID** replaces input 22 (a plain image) at the same position;
+  - TIMEOUT PREP/AWAY and HOME DOWN BG get re-pointed to the GC files in `GT Titles\Football`, keeping their positions.
+  - vMix UC now re-links by name when an input is replaced. Check the Network ID job after the swap.
+- **Title ↔ vMix input map:** `GET http://<vMix PC>:3001/api/titles` lists each title, its input, the fields GC fills (`owns`) and the live fields (`live`).
+- **GC sets content only** (logos, colours, crests FNF/SCC/CIAC, the Network ID picture). On/off is vMix UC's job.
+
+**What the user wants:**
+- [ ] **On-air lights on every graphic button.** vMix UC feedback: `/fb/gfx/{id}/onair`, `/fb/netid`.
+- [ ] **Football page grouped by row:**
+  - show graphics;
+  - game situations;
+  - lower thirds;
+  - scorebug, plus POSS and a manual **Ball Prep / Ball Away** override.
+- [ ] **Stream Deck+ knobs** labelled **PBP / Colour / Crowd / Music**, showing their levels. vMix UC has `/console/mix/{channel}/level "+2"` and `/console/mix/select` / `selected/level` for dials.
+- [ ] **Fix the "TIME LEFT: $NA" variables.** Likely cause: the button uses a variable that doesn't exist, e.g. a vMix module variable by input number that moved, or a custom variable Companion never receives.
+  - vMix UC's feedback goes out as OSC (`/fb/...`, Master › Companion › feedback host/port) and as JSON at `/api/fb`.
+  - **Consider:** have vMix UC set Companion **custom variables** directly (Companion's OSC/HTTP API, `/custom-variable/<name>/value`). Then buttons can use `$(custom:uc_music_remaining)` and similar. This needs the variables created in Companion, or included in an import.
+- [ ] Decks: Stream Deck **XL**, **+** and **standard**.
 
 ---
 

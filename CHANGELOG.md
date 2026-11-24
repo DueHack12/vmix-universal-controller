@@ -26,6 +26,8 @@ The release workflow uses the section for the tag's version as the release notes
 - FPGT suite look, with the Graphics Controller's exact keys.
 
 ### Fixed
+- An input deleted and added again in vMix (new key, same name; e.g. the Network ID image replaced by a GT title) keeps its job link and its graphic settings.
+- Graphics Controller titles: fields the scoreboard fills (`live` in `/api/titles`) are locked as "Filled by the scoreboard"; the temporary manifest fallback is gone (GC v4.14+ serves `/api/titles`).
 - Graphics OUT: decided from what vMix shows right now; a title still on air after OUT is switched off instantly; a graphic on Program (not an overlay) gets a clear message.
 - Music: picking another playlist while stopped makes its first song ready (PLAY used to play the old song until NEXT).
 - A malformed OSC packet could freeze the whole program. It is now rejected.

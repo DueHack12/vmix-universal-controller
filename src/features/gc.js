@@ -56,6 +56,7 @@ function normalizeTitles(r) {
     id: String(t.id || t.name), name: String(t.name || t.id), sport: t.sport ? String(t.sport) : '', group: t.group ? String(t.group) : '',
     input: t.input ? String(t.input) : '', file: t.file ? String(t.file) : '',
     owns: Array.isArray(t.owns) ? t.owns.map(String) : [],
+    live: Array.isArray(t.live) ? t.live.map(String) : [],   // filled by the scoreboard software (GC v4.14+)
     editPath: t.editUrl ? String(t.editUrl) : '/#title=' + encodeURIComponent(String(t.id || t.name)),
   }));
 }
@@ -90,19 +91,8 @@ module.exports = (engine) => {
   }
 
   async function refreshTitles() {
-    try { titles = normalizeTitles(await getJson(base() + '/api/titles')); titlesOk = !!titles; return; }
-    catch (e) { titlesOk = false; if (!/HTTP 404/.test(e.message)) return; }   // 404 = this GC version has no title list yet
-    // Fallback until GC serves /api/titles: its editor's own title list + vMix links. Only reachable when GC runs
-    // on this same computer (its editor port answers on 127.0.0.1 only). Remove once every GC has /api/titles.
-    try {
-      const man = await getJson(editorUrl('/gt/manifest.json'));
-      let links = {}; try { links = (await getJson(editorUrl('/api/gt/state'))).inputs || {}; } catch { /* no links yet */ }
-      const LIVE = /SCORE|CLOCK|QUARTER|PERIOD|HALF|SHOT|PLAY CLOCK|\bTO\b|TIMEOUT|DOWN|DIST|POSS/i;   // GC never writes live fields
-      titles = normalizeTitles((man.titles || []).map((t) => ({
-        id: t.id, name: t.name, sport: t.sport, group: t.group, file: t.file, input: links[t.id] || '',
-        owns: [...(t.texts || []).map((x) => x.name).filter((n) => !LIVE.test(n)), ...(t.layers || []).filter((l) => l.type === 'image').map((l) => l.name)],
-      })));
-    } catch { titles = null; }
+    try { titles = normalizeTitles(await getJson(base() + '/api/titles')); titlesOk = !!titles; }
+    catch (e) { titlesOk = false; if (/HTTP 404/.test(e.message)) titles = null; }   // 404: a GC older than v4.14
   }
   /** editor address for a path: GC's editor is on port 3000 of the same computer (3001 is the read-only port) */
   function editorUrl(p = '/') {
@@ -151,7 +141,7 @@ module.exports = (engine) => {
       const t = titles.find((x) => x.input && (x.input === input.key || x.input === String(input.number)))
         || titles.find((x) => !x.input && normTitle(x.name) && normTitle(x.name) === it)
         || titles.find((x) => { const n = normTitle(x.name); return !x.input && n && it.startsWith(n + ' '); });
-      return t ? { id: t.id, name: t.name, group: t.group, sport: t.sport, owns: t.owns, editUrl: editorUrl(t.editPath) } : null;
+      return t ? { id: t.id, name: t.name, group: t.group, sport: t.sport, owns: t.owns, live: t.live, editUrl: editorUrl(t.editPath) } : null;
     },
     titles() { return titles; },
     state() {

@@ -76,7 +76,7 @@ const gcLabel = (k) => { const [a, b] = k.split('.'); return b ? (a === 'home' ?
       ${G.hiddenItems.map((h) => `<div class="row small muted"><span class="grow">${esc(h.name)} (hidden)</span>${btn('Show', 'gfx.config', { key: h.key, hidden: false }, 'b-sm')}</div>`).join('')}</div>`;
     let right = '<span class="muted">Pick a graphic.</span>';
     if (g) {
-      const srcOpts = [['typed', 'Typed by operator'], ['list', 'Pick from a list'], ['fixed', 'Fixed text'], ['ose', 'OpenStatsEngine value'], ['logo', 'Team logo (Graphics Controller, else Drive › Graphics › Logos)'], ['gc', 'Game info (Graphics Controller)'], ['sb', 'Scoreboard (ScoreReader), live'], ['gcowned', 'Filled by Graphics Controller']];
+      const srcOpts = [['typed', 'Typed by operator'], ['list', 'Pick from a list'], ['fixed', 'Fixed text'], ['ose', 'OpenStatsEngine value'], ['logo', 'Team logo (Graphics Controller, else Drive › Graphics › Logos)'], ['gc', 'Game info (Graphics Controller)'], ['sb', 'Scoreboard (ScoreReader), live'], ['gcowned', 'Filled by Graphics Controller'], ['liveowned', 'Filled by the scoreboard (vMix data source)']];
       const rows = g.fields.concat(/* hidden fields are filtered on the control page only */[]).map((f) => {
         let detail = '';
         if (f.source === 'list') detail = select('gfx.field', { key: g.key, name: f.name }, 'list', [['', '— choose list —'], ...listNames], f.list);
@@ -84,7 +84,7 @@ const gcLabel = (k) => { const [a, b] = k.split('.'); return b ? (a === 'home' ?
         else if (f.source === 'ose') detail = select('gfx.field', { key: g.key, name: f.name }, 'ose', [['', '— field —'], ...S.ose.fields], f.ose);
         else if (f.source === 'gc') detail = select('gfx.field', { key: g.key, name: f.name }, 'gc', [['', '— field —'], ...S.gc.fields.map((k) => [k, gcLabel(k)])], f.gc);
         else if (f.source === 'sb') detail = select('gfx.field', { key: g.key, name: f.name }, 'sb', [['', '— field —'], ...S.scoreboard.fields], f.sb);
-        else if (f.source === 'gcowned') detail = '<span class="tiny muted">vMix UC never writes this field</span>';
+        else if (f.source === 'gcowned' || f.source === 'liveowned') detail = '<span class="tiny muted">vMix UC never writes this field</span>';
         else if (f.source === 'logo') detail = select('gfx.field', { key: g.key, name: f.name }, 'logo', [['home', 'Home team'], ['away', 'Away team']], f.logo || 'home');
         return `<tr class="r"><td class="mono small">${esc(f.name)}<div class="tiny muted">${esc(f.kind)}</div></td>
           <td>${input('gfx.field', { key: g.key, name: f.name }, 'label', f.label, 'style="width:100%"')}</td>

@@ -9,7 +9,7 @@ const game = {
 };
 const titles = [
   { id: 'breakboard', sport: 'Basketball', name: 'Breakboard', group: 'Breakboard', input: null, owns: ['TopText'], editUrl: '/#title=breakboard' },
-  { id: 'bk-intro', sport: 'Basketball', name: 'BK INTRO', group: 'Intro', input: null, owns: ['HOME NAME', 'AWAY NAME'], editUrl: '/#title=bk-intro' },
+  { id: 'bk-intro', sport: 'Basketball', name: 'BK INTRO', group: 'Intro', input: null, owns: ['HOME NAME', 'AWAY NAME'], live: ['SCORE'], editUrl: '/#title=bk-intro' },
   { id: 'fb-intro', sport: 'Football', name: 'INTRO L3 MNF', group: 'Intro', input: null, owns: [], editUrl: '/#title=fb-intro' },
 ];
 function createServer() {

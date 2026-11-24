@@ -402,7 +402,7 @@ test('Graphics Controller: game info, sport follow, field sources, never writes 
   assert.equal(f['Time.Text'], 'set by GC', 'gcowned field untouched');
   assert.equal(engine.state().graphics.items.find((x) => x.id === 'breakboard').fields.find((x) => x.name === 'Time.Text').mode, 'locked');
   // titles: matched by name, Edit link, fields GC fills are locked by default, others stay typed
-  mock.addInput({ type: 'GT', title: 'BK INTRO (Thermal - Normal logo).gtzip', fields: [{ name: 'HOME NAME.Text' }, { name: 'AWAY NAME.Text' }, { name: 'NOTE.Text' }] });
+  mock.addInput({ type: 'GT', title: 'BK INTRO (Thermal - Normal logo).gtzip', fields: [{ name: 'HOME NAME.Text' }, { name: 'AWAY NAME.Text' }, { name: 'NOTE.Text' }, { name: 'SCORE.Text' }] });
   await engine.run('gc.refresh'); await engine.refresh();
   const intro = () => engine.state().graphics.items.find((x) => x.title.startsWith('BK INTRO'));
   assert.ok(await until(() => intro() && intro().gc), 'BK INTRO matched to the GC title');
@@ -410,6 +410,8 @@ test('Graphics Controller: game info, sport follow, field sources, never writes 
   assert.equal(intro().gc.editUrl, 'http://127.0.0.1:' + gcSrv.address().port + '/#title=bk-intro');
   assert.equal(intro().fields.find((x) => x.name === 'HOME NAME.Text').source, 'gcowned');
   assert.equal(intro().fields.find((x) => x.name === 'NOTE.Text').source, 'typed');
+  assert.equal(intro().fields.find((x) => x.name === 'SCORE.Text').source, 'liveowned', 'scoreboard field locked');
+  assert.equal((await engine.run('gfx.set', { id: intro().id, field: 'SCORE.Text', value: '9' })).ok, false);
   assert.equal((await engine.run('gfx.set', { id: intro().id, field: 'HOME NAME.Text', value: 'x' })).ok, false, 'refuses a GC field');
   assert.equal((await engine.run('gfx.set', { id: intro().id, field: 'NOTE.Text', value: 'ok' })).ok, true);
   assert.deepEqual(engine.state().graphics.gcMissing, [], 'all Basketball titles are in vMix');
@@ -464,6 +466,23 @@ test('Network ID: linked by name, toggled on its overlay, shown in state and Com
   await engine.run('netid.off');
   assert.ok(await until(() => !engine.state().netid.onAir), 'off');
   assert.equal(engine.state().links.jobs.find((j) => j.id === 'netId').optional, true);
+});
+
+test('an input replaced in vMix (new key, same name) keeps its link and its graphic settings', async () => {
+  await engine.run('link.auto');
+  const net = mock.state().inputs.find((i) => i.title === 'Network ID');
+  const gl = mock.state().inputs.find((i) => i.title === 'GenL3.gtzip');
+  await engine.run('gfx.config', { key: gl.key, name: 'Lower third (renamed)', overlay: 2 });
+  // vMix: both inputs deleted and added again (e.g. the plain image swapped for a GT title called NETWORK ID)
+  net.key = 'replaced-netid-key'; net.title = 'NETWORK ID.gtzip'; net.type = 'GT';
+  gl.key = 'replaced-genl3-key';
+  await engine.refresh();
+  assert.ok(await until(() => engine.state().links.jobs.find((j) => j.id === 'netId').key === 'replaced-netid-key'), 'Network ID re-linked by name');
+  const g = engine.state().graphics.items.find((x) => x.key === 'replaced-genl3-key');
+  assert.ok(g, 'GenL3 still listed');
+  assert.equal(g.name, 'Lower third (renamed)'); assert.equal(g.overlay, 2, 'settings followed it');
+  assert.ok(!engine.state().graphics.items.some((x) => x.key === 'replaced-netid-key'), 'the Network ID is not in the graphics list');
+  await engine.run('gfx.config', { key: g.key, name: '', overlay: 1 });
 });
 
 test('settings: layout, health blocks, ad folders, shows', async () => {

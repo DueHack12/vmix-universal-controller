@@ -56,14 +56,27 @@ module.exports = (engine) => {
   function cfgFor(key) {
     if (!engine.show.graphics) engine.show.graphics = [];
     let c = configured(key);
-    if (!c) { c = { key }; engine.show.graphics.push(c); }
+    if (!c) { const i = engine.inputByKey(key); c = { key, title: i ? i.title : '' }; engine.show.graphics.push(c); }
     return c;
+  }
+  /** A title deleted and added again in vMix (or replaced at the same position) gets a new key. Its settings
+   *  (name, group, overlay, fields, stat pop) follow it by its vMix title, so nothing has to be set up again. */
+  function adoptByTitle(i) {
+    const keys = new Set(engine.inputs().map((x) => x.key));
+    const n = (t) => String(t || '').toLowerCase().replace(/\.gt(zip|xml)$/, '').trim();
+    const orphan = (engine.show.graphics || []).find((c) => !keys.has(c.key) && c.title && n(c.title) === n(i.title));
+    if (!orphan) return null;
+    engine.log('Graphic settings for "' + i.title + '" moved to its new vMix input (it was added again)');
+    orphan.key = i.key; engine.save();
+    return orphan;
   }
   function list() {
     const out = [];
     for (const i of engine.inputs()) {
       if (!TITLE_TYPES.includes(i.type)) continue;
-      const c = configured(i.key) || {};
+      if (engine.show.links && engine.show.links.netId === i.key) continue;   // the Network ID has its own light and switch
+      let c = configured(i.key) || adoptByTitle(i) || {};
+      if (c.key && c.title !== i.title) c.title = i.title;   // remember the current vMix title
       if (c.hidden) continue;
       const name = c.name || niceName(i.title);
       const gt = !c.group && engine.features.gc ? engine.features.gc.titleFor(i) : null;
@@ -102,9 +115,14 @@ module.exports = (engine) => {
   }
   const gcTitle = (g) => (engine.features.gc ? engine.features.gc.titleFor(g.input) : null);
   /** GC lists owned fields as "HOME NAME.Text", "HOME BLOCK.Source"… or just "HOME NAME" */
-  const gcOwns = (t, field) => (t.owns || []).some((o) => o === field || o + '.Text' === field || o + '.Source' === field || field.split('.')[0] === o);
-  /** stored source, else the Graphics Controller default */
-  const effSource = (g, fc) => fc.source || (gcTitle(g) && gcOwns(gcTitle(g), fc.name) ? 'gcowned' : 'typed');
+  const inList = (list, field) => (list || []).some((o) => o === field || o + '.Text' === field || o + '.Source' === field || field.split('.')[0] === o);
+  const gcOwns = (t, field) => inList(t.owns, field);
+  const gcLive = (t, field) => inList(t.live, field);
+  /** what fills a field when vMix UC hasn't been told: the Graphics Controller, the scoreboard, or the operator */
+  const defaultSource = (t, field) => (t && gcOwns(t, field) ? 'gcowned' : t && gcLive(t, field) ? 'liveowned' : 'typed');
+  /** stored source, else that default */
+  const effSource = (g, fc) => fc.source || defaultSource(gcTitle(g), fc.name);
+  const LOCKED = ['gcowned', 'liveowned'];
   function sourceValue(f) {
     if (f.source === 'fixed') return f.value ?? '';
     if (f.source === 'ose') return engine.features.ose ? String(engine.features.ose.value(f.ose)) : '';
@@ -170,7 +188,8 @@ module.exports = (engine) => {
   engine.cmd('gfx.set', ({ id, field, value }) => {
     const g = find(id); if (!g) return { ok: false, error: 'No such graphic' };
     const f = g.input.fields.find((x) => x.name === field || fieldLabel(x.name) === field);
-    if (f && effSource(g, { ...fieldCfg(g, f.name), name: f.name }) === 'gcowned') return { ok: false, error: field + ' is filled by the Graphics Controller' };
+    const es = f && effSource(g, { ...fieldCfg(g, f.name), name: f.name });
+    if (LOCKED.includes(es)) return { ok: false, error: field + (es === 'gcowned' ? ' is filled by the Graphics Controller' : ' is filled by the scoreboard') };
     return setField(g, field, value);
   });
   engine.cmd('gfx.config', ({ key, ...patch }) => {
@@ -272,7 +291,7 @@ module.exports = (engine) => {
             fields: g.input.fields.map((f) => {
               const c = fieldCfg(g, f.name);
               // a field the Graphics Controller fills is "Filled by Graphics Controller" unless set otherwise here
-              const source = c.source || (gcT && gcOwns(gcT, f.name) ? 'gcowned' : 'typed');
+              const source = c.source || defaultSource(gcT, f.name);
               return { name: f.name, kind: f.kind, value: f.value, label: c.label || fieldLabel(f.name), mode: c.mode || (source === 'typed' || source === 'list' ? 'edit' : 'locked'), source, list: c.list || '', fixed: c.value || '', ose: c.ose || '', gc: c.gc || '', sb: c.sb || '', logo: c.logo || '' };
             }),
           };
