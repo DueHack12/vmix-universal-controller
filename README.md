@@ -139,6 +139,7 @@ OSC to UDP **9600**, or HTTP `GET http://<vMix PC>:8790/osc/console/...` (Generi
 | `/console/ads/break/{id}` · `/console/ads/break/{id}/go` | select / go a break playlist (`pre`, `q1`, `half`, `q3`, `post`) |
 | `/console/music/toggle` · `/play` · `/pause` · `/next` · `/prev` · `/kill` | music |
 | `/console/music/fade/out [ms]` · `/console/music/fade/in` · `/console/music/level 50 [ms]` | music levels |
+| `/console/netid` (toggle) · `/console/netid/on` · `/console/netid/off` | Network ID (corner logo bug); feedback `/fb/netid` |
 | `/console/mix/{channel}/mute [1/0]` · `/listen [1/0]` · `/level 0-100` or `"+5"` | mixer |
 | `/console/mix/{channel}/cough [1/0]` | NDI Audio Bridge cough for that channel's mic |
 | `/console/statpop/{home|away}/{number}/{event}` | build + take a stat pop (e.g. `/console/statpop/home/30/goal`) |

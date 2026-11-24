@@ -14,7 +14,7 @@ const pkg = require('../package.json');
 /** two show names that end up as the same file (Windows ignores capitals) */
 const sameShow = (a, b) => safeName(a).toLowerCase() === safeName(b).toLowerCase();
 
-const FEATURES = ['links', 'ose', 'gc', 'scoreboard', 'bridge', 'graphics', 'videos', 'music', 'ads', 'mixer', 'health', 'youtube'];
+const FEATURES = ['links', 'ose', 'gc', 'scoreboard', 'netid', 'bridge', 'graphics', 'videos', 'music', 'ads', 'mixer', 'health', 'youtube'];
 
 class Engine {
   constructor(store) {

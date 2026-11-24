@@ -14,7 +14,7 @@
     const t = S.tally || {};
     patch($('top'), `<div class="logo">UC</div><b class="grow" style="font-size:16px">${fixed ? esc((TABS.find((x) => x[0] === fixed) || [, 'Remote'])[1]) : 'vMix UC Remotes'} <span class="muted small">· ${esc(S.show.name)}</span></b>
       ${fixed ? '' : `<span class="row tabs">${TABS.map(([k, l]) => `<button class="${k === tab ? 'b-sel' : ''}" data-tab="${k}">${l}</button>`).join('')}</span>`}
-      <span class="pill ${S.vmix.connected ? 'ok' : 'bad'}"><span class="dot" style="background:${S.vmix.connected ? 'var(--green)' : 'var(--red)'}"></span>${S.vmix.connected ? 'vMix' : 'vMix offline'}</span>
+      ${BC.netPill(S.netid)}<span class="pill ${S.vmix.connected ? 'ok' : 'bad'}"><span class="dot" style="background:${S.vmix.connected ? 'var(--green)' : 'var(--red)'}"></span>${S.vmix.connected ? 'vMix' : 'vMix offline'}</span>
       <span class="${t.streaming ? 'tag-live' : 'tag-off'}">${t.streaming ? '● LIVE' : 'OFF AIR'}</span>`);
     const ban = [];
     if (S.ads.phase === 'count') ban.push(`<div class="banner count"><span style="font-size:18px">AD BREAK IN</span><span class="n">${S.ads.count}</span><span class="grow"></span>${b('CANCEL', 'ads.cancel', {}, '', 'style="padding:14px 20px"')}</div>`);

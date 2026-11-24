@@ -36,7 +36,7 @@ function defaultShow(name = 'Default') {
   return {
     name,
     sport: '',
-    links: {},            // job -> vMix input key  (music, ads, videos, gameCam)
+    links: {},            // job -> vMix input key  (music, ads, videos, gameCam, netId)
     linkTitles: {},       // job -> title at link time (fallback if key disappears)
     graphics: null,       // null = every GT input; else [{ key, name, group, overlay, hidden, fields:[{name,label,mode}] }]
     mixer: null,          // null = build from links on first run; else [{ id, name, ref }]

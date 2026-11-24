@@ -39,9 +39,9 @@
     const cf = document.getElementById('copyFrom');
     if (cf._n !== s.show.list.join()) { cf._n = s.show.list.join(); cf.innerHTML = '<option value="">blank</option>' + s.show.list.map((n) => `<option value="${esc(n)}">copy settings from ${esc(n)}</option>`).join(''); }
     const st = (ok, warn, opt) => ok ? ['✓', 'var(--green)'] : warn ? ['!', 'var(--amber)'] : opt ? ['–', 'var(--muted)'] : ['!', 'var(--red)'];
-    const jobsOk = s.links.jobs.filter((j) => j.status === 'ok' || j.status === 'guess').length;
+    const req = s.links.jobs.filter((j) => !j.optional); const jobsOk = req.filter((j) => j.status === 'ok' || j.status === 'guess').length;
     const steps = [
-      ['Link vMix', s.vmix.connected ? jobsOk + ' of ' + s.links.jobs.length + ' jobs linked' : 'vMix not connected', s.vmix.connected && jobsOk === s.links.jobs.length, s.vmix.connected, 'setup'],
+      ['Link vMix', s.vmix.connected ? jobsOk + ' of ' + req.length + ' jobs linked' : 'vMix not connected', s.vmix.connected && jobsOk === req.length, s.vmix.connected, 'setup'],
       ['Drive folders', s.config.driveFound ? 'found' : 'not found', s.config.driveFound, false, 'setup'],
       ['Graphics', s.graphics.items.length + ' titles' + (s.graphics.items.some((g) => g.statpop) ? ' · stat pop set' : ''), s.graphics.items.length > 0, false, 'graphics'],
       ['Mixer', s.mixer.channels.length + ' channels', s.mixer.channels.length > 0, false, 'mixer'],

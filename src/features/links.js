@@ -9,6 +9,7 @@ const JOBS = [
   { id: 'ads', label: 'Ads player', hint: 'a List input for ads', types: ['VideoList'], words: ['ads', 'ad ', 'commercial', 'sponsor'] },
   { id: 'videos', label: 'Video clips', hint: 'a List input for highlights / packages', types: ['VideoList', 'Video'], words: ['video', 'clip', 'highlight', 'playout', 'package'] },
   { id: 'gameCam', label: 'Back-to-game camera', hint: 'camera that goes to Preview on BACK TO GAME', types: ['Capture', 'NDI', 'SRT', 'Stream', 'VirtualSet'], words: ['game', 'cam 1', 'camera 1', 'main', 'wide'] },
+  { id: 'netId', label: 'Network ID (corner logo)', hint: 'optional: the logo bug in the corner, shown on an overlay', optional: true, types: [], words: ['network id', 'net id', 'bug', 'logo', 'watermark', 'fpgt'] },
 ];
 
 function score(job, inp) {
@@ -89,7 +90,7 @@ module.exports = (engine) => {
         jobs: JOBS.map((j) => {
           const inp = engine.input(j.id);
           const key = engine.show.links[j.id] || '';
-          return { id: j.id, label: j.label, hint: j.hint, key, title: inp ? inp.title : '', number: inp ? inp.number : 0, type: inp ? inp.type : '',
+          return { id: j.id, label: j.label, hint: j.hint, optional: !!j.optional, key, title: inp ? inp.title : '', number: inp ? inp.number : 0, type: inp ? inp.type : '',
             status: !key ? 'missing' : !inp ? 'gone' : (guesses[j.id] && guesses[j.id].confidence === 'guess' && guesses[j.id].key === key) ? 'guess' : 'ok' };
         }),
       };

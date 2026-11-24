@@ -93,6 +93,7 @@ function route(addr, args = []) {
     case 'statpop': return ['gfx.statpop', { side: a1 === 'away' ? 'away' : 'home', number: a2 || '', event: String(a3 || '').toUpperCase().replace(/[-_]/g, ' ') }];
     case 'rec': return [value === undefined ? 'rec.toggle' : Number(value) ? 'rec.start' : 'rec.stop', {}];
     case 'stream': return ['stream.toggle', {}];
+    case 'netid': return a1 === 'on' ? ['netid.on', {}] : a1 === 'off' ? ['netid.off', {}] : ['netid.toggle', value === undefined ? {} : { value }];   // /console/netid[/on|/off|/toggle]
     default: break;
   }
   return null;

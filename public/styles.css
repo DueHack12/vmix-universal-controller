@@ -371,3 +371,12 @@ body.focus .bar .k2 { opacity: 0; pointer-events: none; transition: opacity 160m
 body.focus .bar:hover .k2, body.focus .bar:focus-within .k2 { opacity: 1; pointer-events: auto; }
 body.focus .sbstrip { opacity: .92; }
 .mon.snapmon img.snap:not([src]) { display: none; }
+
+/* Network ID (corner logo bug) light in the top bar: red light = up, dim = off, amber = off while live */
+button.pill.netid { font-family: var(--mono); font-size: 11px; letter-spacing: .04em; gap: 6px; }
+button.pill.netid .dot { margin: 0; width: 8px; height: 8px; background: rgba(255,255,255,.18); box-shadow: none; }
+button.pill.netid.on { color: #FFE3E0; border-color: rgba(255,59,48,.5); }
+button.pill.netid.on .dot { background: var(--red); box-shadow: 0 0 6px var(--red), 0 0 12px rgba(255,59,48,.5); }
+button.pill.netid.alarm { color: #FFE7C2; border-color: rgba(255,159,10,.6); animation: netid-pulse 1.6s ease-in-out infinite; }
+button.pill.netid.alarm .dot { background: var(--amber); box-shadow: 0 0 6px var(--amber); }
+@keyframes netid-pulse { 50% { box-shadow: 0 0 0 1px rgba(255,159,10,.6), 0 0 14px rgba(255,159,10,.35); } }

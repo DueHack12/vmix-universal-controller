@@ -78,7 +78,7 @@
       <span class="calm-hide row" style="gap:8px">${gcLink()}<a class="pill" href="/master" style="text-decoration:none">⚙ Master</a><button class="pill" data-ui="resetView" title="Back to the show's default open/closed sections">Reset view</button>
       <a class="pill" href="/control?layout=${layout === 'vertical' ? 'horizontal' : 'vertical'}" style="text-decoration:none">${layout === 'vertical' ? '⇆ Horizontal' : '⇅ Vertical'}</a></span>
       <button class="pill ${ui.focus ? 'focus-on' : ''}" data-ui="focus" title="Focus: hide setup links and help, quieter sections">${ui.focus ? '◉ Focus' : '○ Focus'}</button>
-      <span class="${t.streaming ? 'tag-live' : 'tag-off'}">${t.streaming ? '● LIVE' : 'OFF AIR'}</span>
+      ${BC.netPill(S.netid)}<span class="${t.streaming ? 'tag-live' : 'tag-off'}">${t.streaming ? '● LIVE' : 'OFF AIR'}</span>
       ${rec}
       <span class="clock" id="clock"></span>`);
   }

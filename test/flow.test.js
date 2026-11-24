@@ -452,6 +452,20 @@ test('ScoreReader: live feed, status, scoreboard field source updates while on a
   sbSrv.closeAllConnections(); sbSrv.close();
 });
 
+test('Network ID: linked by name, toggled on its overlay, shown in state and Companion', async () => {
+  await engine.run('link.auto');
+  assert.equal(engine.state().links.jobs.find((j) => j.id === 'netId').title, 'Network ID');
+  assert.equal(engine.state().netid.linked, true);
+  assert.equal(engine.state().netid.onAir, false);
+  await engine.run('netid.toggle');
+  assert.ok(await until(() => engine.state().netid.onAir), 'up');
+  assert.deepEqual(engine.state().netid.channels, [4], 'on overlay 4');
+  assert.deepEqual(oscLib.route('/console/netid/off', []), ['netid.off', {}]);
+  await engine.run('netid.off');
+  assert.ok(await until(() => !engine.state().netid.onAir), 'off');
+  assert.equal(engine.state().links.jobs.find((j) => j.id === 'netId').optional, true);
+});
+
 test('settings: layout, health blocks, ad folders, shows', async () => {
   await engine.run('layout.set', { layout: 'vertical', order: ['mix', 'gfx', 'video', 'ads', 'music', 'stream'], hidden: ['stream'], open: ['gfx'] });
   assert.deepEqual(engine.state().layout.vertical.hidden, ['stream']);

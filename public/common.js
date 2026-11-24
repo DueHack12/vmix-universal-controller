@@ -66,13 +66,29 @@ window.BC = (() => {
   function toLogin() { location.href = '/login?next=' + encodeURIComponent(location.pathname + location.search + location.hash); }
   function connect() {
     const es = new EventSource('/api/events');
-    es.onmessage = (e) => { state = apply(JSON.parse(e.data)); for (const f of subs) f(state); };
+    es.onmessage = (e) => { state = apply(JSON.parse(e.data)); netWatch(state); for (const f of subs) f(state); };
     es.onerror = () => {
       for (const f of subs) f(null);
       fetch('/api/state', { method: 'HEAD' }).then((r) => { if (r.status === 401) toLogin(); }).catch(() => {});
     };
   }
   function onState(f) { subs.push(f); if (state) f(state); }
+  /* Network ID (corner logo bug): a popup when it goes up or down (whoever did it: this page, vMix, the panel),
+     and a warning that stays when it's been off for 10 s while live or recording */
+  let netLast = null; let netWarned = false;
+  function netWatch(s) {
+    const n = s && s.netid;
+    if (!n || !n.linked) { netLast = null; return; }
+    if (netLast !== null && n.onAir !== netLast) toast(n.onAir ? 'Network ID is up' : 'Network ID is off air', n.onAir ? 'ok' : 'info');
+    netLast = n.onAir;
+    if (n.missingWhileLive && !netWarned) { netWarned = true; toast('Network ID has been off for 10 seconds while you are live', 'bad'); }
+    if (!n.missingWhileLive) netWarned = false;
+  }
+  /** top-bar light + switch for the Network ID */
+  function netPill(n) {
+    if (!n || !n.linked) return '';
+    return `<button class="pill netid ${n.onAir ? 'on' : n.missingWhileLive ? 'alarm' : 'off'}" data-cmd="netid.toggle" data-args="{}" title="Network ID (${esc(n.name)}) on overlay ${n.overlay}: tap to ${n.onAir ? 'take it off' : 'put it up'}"><span class="dot"></span>NETWORK ID ${n.onAir ? 'ON' : 'OFF'}</button>`;
+  }
 
   /* delegated controls:
      data-cmd + data-args          -> click runs the command
@@ -188,5 +204,5 @@ window.BC = (() => {
     const r = (size - 6) / 2; const c = 2 * Math.PI * r; const f = Math.max(0, Math.min(1, frac || 0));
     return `<span class="ring" style="width:${size}px;height:${size}px"><svg viewBox="0 0 ${size} ${size}" width="${size}" height="${size}" aria-hidden="true"><circle cx="${size / 2}" cy="${size / 2}" r="${r}" class="ring-bg"/><circle cx="${size / 2}" cy="${size / 2}" r="${r}" class="ring-fg" style="stroke:${color};stroke-dasharray:${c.toFixed(1)};stroke-dashoffset:${(c * (1 - f)).toFixed(1)}"/></svg><span class="ring-l">${label}</span></span>`;
   }
-  return { esc, attr, mmss, hms, meterPct, cmd, connect, onState, wire, patch, toast, mixLive, fmtDb, gcHref, gcEdit, ring, get state() { return state; } };
+  return { esc, attr, mmss, hms, meterPct, cmd, connect, onState, wire, patch, toast, mixLive, fmtDb, gcHref, gcEdit, ring, netPill, get state() { return state; } };
 })();

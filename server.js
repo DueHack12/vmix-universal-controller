@@ -110,6 +110,7 @@ function feedback() {
   const sb = (s.scoreboard && s.scoreboard.data) || {};
   for (const k of ['clock', 'home_score', 'guest_score', 'period_ordinal', 'down_distance', 'play_clock', 'shot_clock']) fb['/fb/scoreboard/' + k] = sb[k] ?? '';
   fb['/fb/scoreboard/live'] = s.scoreboard && s.scoreboard.live ? 1 : 0;
+  fb['/fb/netid'] = s.netid && s.netid.onAir ? 1 : 0;
   const selCh = s.mixer.channels.find((c) => c.name === s.mixer.selected);
   fb['/fb/mix/selected/level'] = selCh ? selCh.volume : 0;
   return fb;

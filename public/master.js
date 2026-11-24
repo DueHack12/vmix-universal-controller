@@ -35,7 +35,10 @@ const gcLabel = (k) => { const [a, b] = k.split('.'); return b ? (a === 'home' ?
         <input id="vhost" style="width:170px" value="${esc(S.vmix.host)}"><input id="vport" style="width:90px" value="${esc(S.vmix.port)}"><button data-act="vmix">Connect</button></div>
         <div class="row wrap"><span class="small muted">Only if you set a password in vMix › Web Controller:</span><input id="vuser" style="width:140px" placeholder="user name" value="${esc(S.vmix.user)}"><input id="vpass" type="password" style="width:140px" placeholder="password" value="${S.vmix.hasPassword ? '••••••••' : ''}"></div>`)
       + panel('2 · Assign jobs', `<div class="muted small">Matched automatically. Easiest fix: <b>◎ Pick in vMix</b>, then click the input in vMix so it goes to <b style="color:var(--green)">Preview</b>. Links use vMix's permanent input ID, so renaming inputs later is fine.</div>
-        <table class="t"><thead><tr><th>Job</th><th>vMix input</th><th>Status</th><th></th></tr></thead><tbody>${jobs}</tbody></table><div class="row">${btn('⟳ Auto-match again', 'link.auto', {})}</div>`)
+        <table class="t"><thead><tr><th>Job</th><th>vMix input</th><th>Status</th><th></th></tr></thead><tbody>${jobs}</tbody></table><div class="row">${btn('⟳ Auto-match again', 'link.auto', {})}</div>
+        <div class="row wrap"><span class="small muted">Network ID goes on overlay</span>${select('netid.settings', {}, 'overlay', [1, 2, 3, 4], S.netid.overlay)}
+          <label class="small"><input type="checkbox" ${S.netid.warnOn ? 'checked' : ''} data-cmd="netid.settings" data-key="warn"> warn me when it's off while live or recording</label>
+          <span class="small ${S.netid.onAir ? 'ok' : 'muted'}">${S.netid.linked ? (S.netid.onAir ? '● on air now' : 'off air now') : ''}</span></div>`)
       + panel('3 · Drive folders', `<div class="muted small">Read and copy only: nothing on the Drive is ever moved, renamed or deleted.</div>
         <div class="row"><input id="drive" class="grow" value="${esc(S.config.driveRoot)}"><button data-act="drive">Save</button>${btn('Create missing folders', 'drive.makeFolders', {}, '', 'data-confirm="Create any missing vMix Universal Controller folders? Nothing existing is touched."')}</div>
         <div class="small">${S.config.driveFound ? '<span class="ok">✓ Folder found</span>' : '<span class="bad">Folder not found: check Google Drive for desktop, or press Create missing folders.</span>'}</div>
@@ -208,9 +211,9 @@ const gcLabel = (k) => { const [a, b] = k.split('.'); return b ? (a === 'home' ?
 /console/mix/{channel}/mute [1|0]   /listen [1|0]   /cough [1|0]   /level {0-100 | "+5" | "-5"}
 Stream Deck + dials: /console/music/level "+5" | "-5"   /console/mix/select "+1" | "-1"   /console/mix/selected/level "+2" | "-2"   /console/mix/selected/mute   /console/video/jog "+1" | "-1" (seconds)   /console/ads/prev   /console/ads/fade/in | out
 /console/statpop/{home|away}/{number}/{EVENT}
-/console/rec [1|0]    /console/stream
+/console/rec [1|0]    /console/stream    /console/netid [1|0]   (Network ID logo bug)
 
-Feedback: /fb/youtube/live · /fb/youtube/viewers · /fb/mix/selected · /fb/mix/selected/level · /fb/gfx/{id}/onair · /fb/music/playing · /fb/music/song · /fb/music/remaining · /fb/music/next · /fb/ads/phase · /fb/ads/countdown · /fb/ads/adleft · /fb/ads/remaining · /fb/video/remaining · /fb/mix/{name}/mode · /fb/rec · /fb/rec/time · /fb/stream · /fb/health/ok</pre>`);
+Feedback: /fb/netid · /fb/youtube/live · /fb/youtube/viewers · /fb/mix/selected · /fb/mix/selected/level · /fb/gfx/{id}/onair · /fb/music/playing · /fb/music/song · /fb/music/remaining · /fb/music/next · /fb/ads/phase · /fb/ads/countdown · /fb/ads/adleft · /fb/ads/remaining · /fb/video/remaining · /fb/mix/{name}/mode · /fb/rec · /fb/rec/time · /fb/stream · /fb/health/ok</pre>`);
   }
 
   /* ---------- Shows ---------- */

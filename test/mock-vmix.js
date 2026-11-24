@@ -33,6 +33,7 @@ function makeState() {
     inp('NDI', 'NDI BRIDGE (Jane)', { level: 0.45 }),
     inp('NDI', 'NDI BRIDGE (Sideline)', { level: 0.3 }),
     inp('Audio', 'Crowd mic (Shotgun)', { level: 0.35 }),
+    inp('Image', 'Network ID', { muted: true, audiobusses: '' }),   // the corner logo bug
   ];
   inputs.forEach((x, i) => (x.number = i + 1));
   return {

@@ -6,6 +6,7 @@ The release workflow uses the section for the tag's version as the release notes
 ## [Unreleased]
 
 ### Added
+- **Network ID** (the corner logo bug): an optional job in Master › Setup › Assign jobs (auto-links an input called "Network ID"), overlay channel setting (default 4); a NETWORK ID ON/OFF light in the top bar of the control page and iPad that toggles it; a popup whenever it goes up or down; a warning that stays when it's been off 10 s while live or recording; Companion `/console/netid[/on|/off]` and `/fb/netid`.
 - **Live-show look:**
   - a red frame round the page while a graphic, video or the ads are on Program;
   - Program / Preview / Graphic monitors with pictures from vMix (switch with PGM / PVW);
